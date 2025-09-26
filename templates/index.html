@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}" />
+    <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}" />
     <title>Microscope Controller</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
@@ -18,8 +23,8 @@
                 <input type="range" id="speed-slider" min="500" max="3500" step="500" value="500">
             </div>
             <div>
-                <label for="movement-range">Movement Distance: <span id="range-value">5</span> mm</label>
-                <input type="range" id="range-slider" min="1" max="50" value="5">
+                <label for="movement-range">Movement Distance: <span id="range-value">5</span> microns</label>
+                <input type="range" id="range-slider" min="1" max="200" value="5">
             </div>
         </div>
 

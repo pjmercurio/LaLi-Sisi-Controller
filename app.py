@@ -6,7 +6,8 @@ import socket
 
 app = Flask(__name__)
 
-BAUDRATE = 115200
+BAUDRATE = 115200 # Original baudrate for serial communication (common for SKR boards)
+# BAUDRATE = 9600  # Baudrate for serial communication over Bluetooth (HC-05 module)
 ser = None
 
 def get_local_ip():
@@ -23,6 +24,8 @@ def get_local_ip():
 def find_skr_serial_port():
     """Finds the SKR board's serial port automatically."""
     possible_ports = glob.glob('/dev/cu.usbmodem*')  # List all possible SKR board ports
+
+    # return '/dev/cu.DSDTECHHC-05'
 
     if possible_ports:
         print(f"Detected SKR board on {possible_ports[0]}")

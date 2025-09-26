@@ -1,6 +1,6 @@
 const fanSpeed = 255;
 let feedRate = 500;
-let distance = 5;
+let distance = 50;
 
 function sendGCode(gcode) {
     fetch('/send_gcode', {
@@ -50,6 +50,26 @@ document.addEventListener('DOMContentLoaded', () => {
     recognition.continuous = true;
     recognition.lang = 'en-US';
     let isManuallyStopped = false;
+
+    // Change color of each arrow button once per second for 10 seconds
+    function partyTime() {
+        const buttons = document.querySelectorAll('.arrow, bottom-button');
+        let count = 0;
+        const interval = setInterval(() => {
+            if (count >= 40) {
+                clearInterval(interval);
+                buttons.forEach(button => {
+                    button.style.backgroundColor = '';
+                });
+                return;
+            }
+            const index = count % buttons.length;
+            const button = buttons[index];
+            const randomColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            button.style.backgroundColor = randomColor;
+            count++;
+        }, 250); 
+    }
 
     // Initialize & check SKR board connection status
     fetch('/initialize') 
@@ -114,33 +134,37 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Recognized speech:', transcript);
 
         // Check for specific distance command first
-        const pattern = /^move\s(\w+)\s(\d*\.?\d+)\s(?:millimeters?|mm)$/i;
-        const validDirections = ['up', 'down', 'left', 'right'];
+        const pattern = /^(?:go|move|slide)\s(up|down|left|right)\s(\d*\.?\d+|to)\s(millimeters?|mm|inch|inches|in|microns?)$/i;
         const match = transcript.match(pattern);
 
         if (match) {
             const direction = match[1].toLowerCase();
-            const distance = parseFloat(match[2] === 'to' ? '2' : match[2]); // Speech recognition may return 'to' instead of the number '2'
+            let distance = parseFloat(match[2] === 'to' ? '2' : match[2]); // Speech recognition may return 'to' instead of the number '2'
+            console.log("Parsed distance:", distance);
 
-            if (validDirections.includes(direction)) {
-                switch (direction) {
-                    case 'up':
-                        sendGCode(`G1 Y${distance} F${feedRate}`);
-                        break;
-                    case 'down':
-                        sendGCode(`G1 Y-${distance} F${feedRate}`);
-                        break;
-                    case 'left':
-                        sendGCode(`G1 X-${distance} F${feedRate}`);
-                        break;
-                    case 'right':
-                        sendGCode(`G1 X${distance} F${feedRate}`);
-                        break;
-                }
-            } else {
-                console.log('Invalid direction:', direction);
+            // Convert distance to millimeters if necessary
+            const unit = match[3] ? match[3].toLowerCase() : 'mm';
+            if ("inches".includes(unit)) {
+                distance *= 25.4;
+            }
+            if ("microns".includes(unit)) {
+                distance /= 1000;
             }
 
+            switch (direction) {
+                case 'up':
+                    sendGCode(`G1 Y${distance} F${feedRate}`);
+                    break;
+                case 'down':
+                    sendGCode(`G1 Y-${distance} F${feedRate}`);
+                    break;
+                case 'left':
+                    sendGCode(`G1 X-${distance} F${feedRate}`);
+                    break;
+                case 'right':
+                    sendGCode(`G1 X${distance} F${feedRate}`);
+                    break;
+            }
             return;
         }
 
@@ -176,6 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'move right':
                 sendGCode(`G1 X10 F${feedRate}`);
+                break;
+            case 'party time':
+            case 'lets party':
+            case 'throw a party':
+                partyTime();
                 break;
             case 'say no':
                 sendGCodeSequence('G1 X15\n G1 X-15\n G1 X15\n G1 X-15');
@@ -249,9 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateRangeSliderBackground() {
         const rawValue = rangeSlider.value;
         const value = (rawValue - rangeSlider.min) / (rangeSlider.max - rangeSlider.min) * 100;
-        distance = rawValue;
+        distance = rawValue / 100;
         rangeSlider.style.background = `linear-gradient(to right,rgb(56, 28, 215) ${value}%, #ddd ${value}%)`;
-        document.getElementById('range-value').innerText = rawValue;
+        document.getElementById('range-value').innerText = rawValue * 10;
     }
 
     speedSlider.addEventListener('input', updateSpeedSliderBackground);
