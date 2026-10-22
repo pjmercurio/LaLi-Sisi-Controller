@@ -66,7 +66,7 @@ A two-axis X/Y platform driven by an SKR board running Marlin.
 - 24v DC cooling fan
 - USB Cable
 
-## Tank cleaner
+## Coral Cleaner ("CC" or "SiSi")
 
 A GRBL-controlled gantry with a water pump attached, used to sweep a spray nozzle across a tank. The pump is switched with GRBL's coolant commands.
 
@@ -79,7 +79,7 @@ A GRBL-controlled gantry with a water pump attached, used to sweep a spray nozzl
 
 When the app closes it turns the pump off and releases the motors.
 
-## LaLi
+## Larvae Linker ("LaLi")
 
 A dispensing and UV-curing line driven by a RUMBA board running Marlin:
 
@@ -110,7 +110,7 @@ Each row is one step on the progress bar. Every step ends by waiting until all m
 
 Over a full run the conveyor travels 22 × 14.5 = **319 mm**. Make sure X has that much room from where you start it.
 
-While the routine runs, the Go! button glows and further clicks are ignored. If a step fails (e.g. the board disconnects), the routine stops there and the progress bar turns red and shows which step failed. In that case the retract **does not** run, so the syringes stay pressed and the UV light stays on.
+While the routine runs, the "Go!" button glows and further clicks are ignored. If a step fails (e.g. the board disconnects), the routine stops there and the progress bar turns red and shows which step failed. In that case the retract **does not** run, so the syringes stay pressed and the UV light stays on.
 
 ### Routine settings
 
