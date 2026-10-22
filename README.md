@@ -1,4 +1,4 @@
-# Dual-Axis-Platform-Controller
+# LaLi-Sisi-Controller
 
 A web interface for controlling stepper-motor machines over a serial connection. Motors can be controlled with on-screen buttons, arrow keys, or voice commands (e.g. "move right 15 millimeters").
 
