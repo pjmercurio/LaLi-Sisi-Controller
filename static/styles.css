@@ -32,7 +32,7 @@ h1 {
 
 .slider-container {
     width: 550px;
-    font-size: 13pt;
+    font-size: 12pt;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -49,7 +49,7 @@ input[type="range"] {
     background: #ddd; /* Unfilled track color */
     border-radius: 5px; /* Rounded track edges */
     outline: none; /* Removes outline on focus */
-    transition: background 0.3s ease-in-out; /* Smooth transition for background */ut;
+    transition: background 0.3s ease-in-out; /* Smooth transition for background */
 }
 
 input[type="range"]:focus {
@@ -77,6 +77,39 @@ input[type="range"]::-webkit-slider-thumb {
     width: 300px;
     display: flex;
     justify-content: space-evenly;
+}
+
+/* Looks like plain label text but stays editable */
+.inline-value {
+    width: 4ch; /* fallback for browsers without field-sizing */
+    field-sizing: content; /* grow/shrink to fit the number */
+    min-width: 1ch;
+    font: inherit;
+    font-weight: bold;
+    color: inherit;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    text-align: center;
+    cursor: text;
+    -webkit-app-region: no-drag;
+    -moz-appearance: textfield; /* hide spinner arrows in Firefox */
+    appearance: textfield;
+}
+
+/* Hide spinner arrows in Chrome/Safari */
+.inline-value::-webkit-inner-spin-button,
+.inline-value::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Faint underline only while editing, so it's clear where you're typing */
+.inline-value:focus {
+    border-bottom-color: rgba(255, 255, 255, 0.6);
 }
 
 #gcode-input {
@@ -132,6 +165,57 @@ input[type="range"]::-webkit-slider-thumb {
     gap: 20px;
 }
 
+.controllers {
+    display: flex;
+    align-items: center;
+    gap: 100px;
+}
+
+/* B column | lock | C column, with labels on top and up/down arrows below */
+.bc-group {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-rows: auto auto auto;
+    column-gap: 20px;
+    row-gap: 20px;
+    justify-items: center;
+    align-items: center;
+}
+
+.bc-group .b-col { grid-column: 1; }
+.bc-group .c-col { grid-column: 3; }
+.bc-group .axis-label { grid-row: 1; }
+.bc-group .arrow.up { grid-row: 2; }
+.bc-group .arrow.down { grid-row: 3; }
+
+.bc-group .lock-button {
+    grid-column: 2;
+    grid-row: 2 / 4; /* centered between the up and down rows */
+}
+
+/* Runs across all three columns; the arrows cover the ends, so it shows between them */
+.bc-link {
+    display: none;
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    height: 4px;
+    border-radius: 2px;
+    background: #FFC107; /* matches the locked button */
+}
+
+.bc-link.up { grid-row: 2; }
+.bc-link.down { grid-row: 3; }
+
+.bc-group.locked .bc-link {
+    display: block;
+}
+
+.axis-label {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FFF;
+}
+
 .horizontal-arrows {
     display: flex;
     gap: 20px;
@@ -169,6 +253,31 @@ input[type="range"]::-webkit-slider-thumb {
     background-color: #FF9800; /* Orange */
 }
 
+.arrow.b-axis {
+    background-color: #E91E63; /* Pink */
+}
+
+.arrow.c-axis {
+    background-color: #000; /* Black */
+}
+
+.lock-button {
+    width: 70px;
+    height: 70px;
+    font-size: 32px;
+    border: 3px solid transparent;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.lock-button.active {
+    background: #FFC107; /* Amber when locked */
+    border-color: #fff;
+}
+
 .arrow:hover {
     transform: scale(1.1);
 }
@@ -180,10 +289,30 @@ input[type="range"]::-webkit-slider-thumb {
 #bottom-buttons {
     display: flex;
     justify-content: center;
+    align-items: flex-start; /* keep buttons level whether or not they have a label */
     gap: 20px;
 }
 
+.labeled-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.button-label {
+    color: #fff;
+    font-size: 12px;
+    /* Zero width so long text (e.g. "Dispensing...") spills evenly past the button
+       instead of widening it and pushing the neighbours apart */
+    width: 0;
+    display: flex;
+    justify-content: center;
+    white-space: nowrap;
+}
+
 .bottom-button {
+    user-select: none;
     width: 60px;
     height: 60px;
     border: none;
@@ -191,11 +320,74 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 32px;
     border-radius: 12px;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
+    transition: background-color 0.2s, transform 0.2s;
 }
 
 .bottom-button:hover {
-    transform: scale(1.05);
+    transform: scale(1.1);
+}
+
+#preset-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+}
+
+#run-progress {
+    width: 320px;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    font-size: 14px;
+}
+
+#run-progress-track {
+    width: 100%;
+    height: 10px;
+    background: #ddd;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#run-progress-fill {
+    width: 0;
+    height: 100%;
+    background: #4CAF50; /* matches the play button */
+    transition: width 0.4s ease;
+}
+
+#run-progress.failed #run-progress-fill {
+    background: #f44336;
+}
+
+.syringe {
+    background-color: #2196F3;
+    /* background-color: #E91E63; Pink, like the B buttons */
+}
+
+.syringe-icon {
+    display: inline-block;
+    margin-top: -2px;
+    margin-left: -2px;
+    /* font-size: 28px; */
+    transform: rotate(180deg);
+}
+
+.play {
+    background-color: #4CAF50;
+    color: white;
+    /* font-size: 28px; */
+}
+
+.play.active {
+    animation: glowing 750ms infinite alternate ease-in-out;
+}
+
+.stop {
+    background-color: #f44336;
 }
 
 .mic {
@@ -207,7 +399,16 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .fan {
-    background-color: hsl(230, 100%, 78%);
+    background-color: #3fd0d4;
+}
+
+.light {
+    background-color: #9e9e9e; /* grey when off */
+}
+
+.light.active {
+    background-color: #FFEB3B;
+    box-shadow: 0 0 12px 4px rgba(255, 235, 59, 0.7);
 }
 
 .fan.active svg {
@@ -215,12 +416,48 @@ input[type="range"]::-webkit-slider-thumb {
     transform-origin: center;
 }
 
+.pump {
+    background-color: #2389da;
+}
+
+/* .pump.active {
+    background-color: #1471be;
+} */
+
+.pump-icon {
+    width: 100%;
+    height: 100%;
+    background-image: url('/static/pumpicon.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  
+.pump.active .pump-icon {
+    background-image: url('/static/pump.gif');
+}
+
 .camera {
     background-color: hsl(298, 100%, 68%);
 }
 
+.dance {
+    background-color: #FF9800;
+}
+
 .home {
     background-color: hsl(59, 100%, 81%);
+}
+
+.sweep {
+    background-color: #d8ffd9;
+    border: none;
+    padding: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.3s;
 }
 
 @keyframes glowing {
@@ -247,11 +484,25 @@ input[type="range"]::-webkit-slider-thumb {
         flex-direction: column;
         row-gap: 15px;
         width: 100%;
-        font-size: 12pt;
     }
 
     .controller {
         gap: 10px;
+    }
+
+    .controllers {
+        gap: 16px;
+    }
+
+    .bc-group {
+        column-gap: 10px;
+        row-gap: 10px;
+    }
+
+    .lock-button {
+        width: 50px;
+        height: 50px;
+        font-size: 22px;
     }
 
     .horizontal-arrows {

@@ -4,3 +4,4 @@ build
 /dist
 /electron-app/dist
 /electron-app/node_modules
+vosk*
