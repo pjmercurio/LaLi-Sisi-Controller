@@ -16,6 +16,83 @@ The app can be run by simply running `./run.sh` from the root folder. This will 
 
 To build the standalone app, run `./build.sh`. This will first compile the Flask app and its associated static assets into a binary, then this binary is copied into the Electron app's dist folder, where the Electron app is then built with the Flask binary as a bundle resource. The final product ends up in the root build folder as a standalone app which when opened will spin up the Flask server, check for a serial connection with the controller board, and get the urls for opening the web app, displaying them in the main window.
 
+## How it works
+
+```
+Browser page                      Flask server                   Controller board
+(templates/index.html,   ──HTTP──▶  (app.py, port 5050)  ──USB serial──▶  (SKR / Arduino / RUMBA)
+ static/script.js)                  one shared connection
+```
+
+The page never talks to the board directly. Every button, arrow key, voice command and routine step builds G-code in the browser and sends it to the Flask server. The server writes it to the board over USB serial, one line at a time.
+
+### The Flask server (`app.py`)
+
+The server listens on `0.0.0.0:5050`, so the page can be opened on this computer (`localhost`) or from another device on the same network. It keeps a single serial connection (`ser`), opened on the first `/initialize` and reused for every request after that.
+
+| Route | Called by | What it does |
+| --- | --- | --- |
+| `GET /` | Browser | Serves the control page |
+| `GET /initialize` | Control page on load, Electron launcher | Detects the board, opens the serial port at 115200 baud, runs the firmware's startup sequence, and returns `device_type`, `firmware`, `port` and `has_bc_axes`. If already connected, it just returns the current details. |
+| `POST /send_gcode` | Every control | Sends G-code to the board. Body: `{"gcode": "G1 X5 F500\nG4 P0"}` |
+| `GET /available-urls` | Electron launcher | Returns the local and network URLs for the page |
+| `GET /cleanup` | Electron on quit, and `app.py` on exit | Turns off the pump (GRBL) or FAN0 (Marlin), releases the motors and closes the port |
+
+**Startup sequences:**
+
+- **GRBL:** wake the board, `$X` (clear alarm), `$20=0` / `$21=0` (soft and hard limits off), `G91` (relative moves).
+- **Marlin:** `M106 S255` (fan on, SKR only), `M84 S0` (keep motors powered), `M211 S0` (software endstops off), `G91` (relative moves).
+
+All moves are **relative** (`G91`). `G1 X5` means "move 5 mm in +X from wherever you are", not "go to X = 5".
+
+**What happens on each `/send_gcode`:**
+
+1. Clear any leftover serial data and send `$X` (GRBL's alarm unlock; Marlin ignores it).
+2. GRBL only: re-send `G91`.
+3. Send each non-empty line (lines starting with `;` are skipped) and wait up to 30 s for the board's `ok` before sending the next one.
+4. Reply `200` once every line got an `ok`. If the board answers `error` or `ALARM`, or doesn't answer in time, stop, try to recover (clear the buffers and send `$X`), and reply `500` with `{"error": "..."}`.
+
+> **`ok` doesn't mean "finished".** Boards reply `ok` as soon as they've *queued* a move, before the motors have actually moved. The exceptions are pauses (`G4`) and sync commands (`M400` on Marlin, `G4 P0` on GRBL): the board only replies to those once all queued motion has finished. The page relies on this to know when the machine has physically stopped.
+
+### The frontend (`static/script.js`)
+
+Plain JavaScript with no build step. On load the page calls `/initialize`:
+
+- **Success:** the controls appear, and machine-specific ones are shown or hidden using CSS classes: `bc-axis` (LaLi only) and `not-bc-axis` (everything except LaLi).
+- **Failure:** a "Not Connected" message is shown instead. Fix the connection and reload the page.
+
+There are two ways the page sends G-code:
+
+| Function | Waits for the reply? | Used by |
+| --- | --- | --- |
+| `sendGCode(gcode)` | No (fire and forget; errors are only logged) | Arrows, keyboard, voice, most buttons |
+| `sendGCodeOrThrow(gcode)` | Yes; throws if the server returns an error | 💉 Dispense and ▶ Go! |
+
+Dispense and Go! end each request with a sync command, so the request only returns once the machine has stopped moving. That's what keeps the "Dispensing..." label and the Go! progress bar in step with the real machine. Go! sends one request per step, so a failure stops the routine at that step.
+
+G-code that differs between firmware is built by helpers that use the `firmware` value returned by `/initialize`:
+
+- `dwellGCode(seconds)`: pause (`G4 P<ms>` on Marlin, `G4 P<s>` on GRBL)
+- `syncGCode()`: wait for all moves to finish (`M400` on Marlin, `G4 P0` on GRBL)
+
+**Voice control** uses the browser's built-in Web Speech API (Chrome / Electron). Each recognised phrase is matched against the commands in [Voice commands](#voice-commands) and turned into G-code.
+
+### The Electron app
+
+The standalone build (`./build.sh`) wraps the server in a desktop app. On launch it:
+
+1. Starts the compiled Flask binary.
+2. Waits until port 5050 responds.
+3. Shows a small launcher window listing the URLs from `/available-urls`. The control page itself is opened in a browser at one of those URLs.
+
+On quit it calls `/cleanup` and then stops the server.
+
+### Things to be aware of
+
+- **One board at a time:** the server connects to the first matching board it finds.
+- **No command queue on the server:** requests are handled as they arrive, so pressing other controls while Go! is running can interleave their commands with the routine's. Leave the page alone until the routine finishes.
+- **Reconnecting needs a restart:** if the board is unplugged, the server still holds the old connection and `/initialize` keeps reporting "Already initialized". Restart the server (or the Electron app) after reconnecting the board.
+
 ## How the board is detected
 
 On page load the app calls `/initialize`, which looks for a board in this order (`detect_device()` in `app.py`):
@@ -49,7 +126,7 @@ The firmware matters for a few commands. For example, `G4 P` (pause) means secon
 
 Every command sent is printed to the browser's developer console (`Sending G-code: …`) and to the terminal running `app.py` (`Sending: …`).
 
-## Microscope platform
+## Microscope platform 🐚🔬
 
 A two-axis X/Y platform driven by an SKR board running Marlin.
 
@@ -66,7 +143,7 @@ A two-axis X/Y platform driven by an SKR board running Marlin.
 - 24v DC cooling fan
 - USB Cable
 
-## Coral Cleaner ("CC" or "SiSi")
+## Coral Cleaner ("CC" or "SiSi") 🪸🚿
 
 A GRBL-controlled gantry with a water pump attached, used to sweep a spray nozzle across a tank. The pump is switched with GRBL's coolant commands.
 
@@ -79,7 +156,7 @@ A GRBL-controlled gantry with a water pump attached, used to sweep a spray nozzl
 
 When the app closes it turns the pump off and releases the motors.
 
-## Larvae Linker ("LaLi")
+## Larvae Linker ("LaLi") 💉🔦
 
 A dispensing and UV-curing line driven by a RUMBA board running Marlin:
 
