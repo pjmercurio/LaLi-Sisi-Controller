@@ -7,17 +7,14 @@ let distance = 50;
 // Set back to false once testing with the real machine.
 const PREVIEW_BC_MACHINE = true;
 
-// Syringe preset: one press moves B and C down together by this much
 const SYRINGE_PRESS_MM = 1.5;
 const SYRINGE_PRESS_FEEDRATE = 200;
 const SYRINGE_RETRACT_FEEDRATE = 600;
 const SYRINGE_WAIT_TIME = 4; // seconds to wait after a syringe press before moving down
 const PRE_PLUNGE_PAUSE_S = 0.5; // settle time after a conveyor move, before the next plunge
 const SEQUENCE_REPEATS = 12;
-// Axis that moves the conveyor in the routine (was Z)
 const CONVEYOR_AXIS = 'X';
 const SEQUENCE_X_STEP_MM = 14.5;
-// Priming: this many presses before the cycles start, then the conveyor (X) moves into place
 const PRIMING_PRESSES = 2;
 const PRIMING_PAUSE_S = 1; // between priming presses
 const PRIMING_X_MOVE_MM = 14.5;
@@ -25,7 +22,7 @@ const PRIMING_X_MOVE_MM = 14.5;
 const UV_ADVANCE_STEPS = 9;
 const UV_ADVANCE_INTERVAL_S = 5; // wait before each advance
 
-let currentDeviceType = null;
+let currentFirmware = null; // 'grbl' or 'marlin', from /initialize
 
 function sendGCode(gcode) {
     // Log each non-empty, non-comment line exactly as the server will send it
@@ -68,13 +65,13 @@ function emergencyStop() {
     sendGCode('M410');
 }
 
-// Always pass seconds. G4 P means milliseconds on Marlin (SKR) but seconds on GRBL,
+// Always pass seconds. G4 P means milliseconds on Marlin (SKR, RUMBA) but seconds on GRBL,
 // so this converts for Marlin. Use it for every routine pause rather than writing G4 by hand.
 function dwellGCode(seconds) {
-    if (currentDeviceType === 'skr') {
+    if (currentFirmware === 'marlin') {
         return `G4 P${Math.round(seconds * 1000)}`;
     }
-    if (!currentDeviceType) {
+    if (!currentFirmware) {
         console.warn(`Board type unknown; assuming GRBL for a ${seconds} s pause (G4 P${seconds})`);
     }
     return `G4 P${seconds}`;
@@ -82,7 +79,7 @@ function dwellGCode(seconds) {
 
 // Wait until all queued moves have physically finished
 function syncGCode() {
-    return currentDeviceType === 'skr' ? 'M400' : 'G4 P0';
+    return currentFirmware === 'marlin' ? 'M400' : 'G4 P0';
 }
 
 // "Down" on B/C is positive (matches the ▼ buttons)
@@ -140,14 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(response => response.json())  // parse json regardless of status
     .then(data => {
         // Record the board even in preview mode, so pauses use the right units
-        if (data.status === 200) currentDeviceType = data.device_type;
+        if (data.status === 200) currentFirmware = data.firmware;
 
         if (PREVIEW_BC_MACHINE) {
             showConnected(true);
             console.warn('PREVIEW_BC_MACHINE is on: showing B/C controls regardless of connection.', data.message);
         } else if (data.status === 200) {
             showConnected(data.has_bc_axes);
-            console.log('Connected:', data.message, 'on', data.port, `(${data.device_type})`);
+            console.log('Connected:', data.message, 'on', data.port, `(${data.device_type}, ${data.firmware})`);
         } else {
             document.getElementById('connection-status').style.display = 'block';
             document.getElementById('main-container').style.display = 'none';
