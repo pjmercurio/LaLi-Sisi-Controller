@@ -2,7 +2,7 @@ body {
     display: flex;
     justify-content: center;
     flex-direction: column;
-    row-gap: 30px;
+    row-gap: 24px;
     align-items: center;
     height: 100vh;
     background: linear-gradient(135deg, #2b2b2b, #161616);
@@ -20,6 +20,47 @@ h1 {
     display: none;
 }
 
+/* Machine picker: one row of joined buttons, the selected one highlighted */
+.segmented {
+    display: flex;
+    padding: 4px;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    -webkit-app-region: no-drag;
+}
+
+.segmented button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #ccc;
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.segmented button:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.segmented button.active {
+    background: #fff;
+    color: #161616;
+    font-weight: bold;
+}
+
+/* While connecting / switching machines */
+.segmented.busy {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 #drag-region {
     position: absolute;
     top: 0;
@@ -30,15 +71,33 @@ h1 {
     background: transparent; /* Make sure it doesn't cover anything */
 }
 
-.slider-container {
-    width: 550px;
-    font-size: 12pt;
+/* Slider groups side by side: Movement on the left, Plunger (LaLi only) on the right */
+.slider-rows {
     display: flex;
     flex-direction: row;
-    align-items: center;
-    column-gap: 30px;
+    justify-content: center;
+    align-items: flex-start;
+    column-gap: 50px;
+}
+
+/* One group: its speed and distance sliders stacked */
+.slider-container {
+    width: 260px;
+    font-size: 12pt;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    row-gap: 12px;
     color: #fff;
     text-align: center;
+}
+
+.slider-container span {
+    display: flex;
+    align-items: center;
+    column-gap: 4px;
+    font-size: 18pt;
+    user-select: none;
 }
 
 input[type="range"] {
@@ -65,12 +124,46 @@ input[type="range"]::-webkit-slider-thumb {
     margin-top: 0px; /* Aligns thumb with track */
 }
 
-#speed-slider::-webkit-slider-thumb {
-    background: #4CAF50; /* Green thumb color */
+/* Mac OS X Snow Leopard slider (from snow-leopard.css): grey inset track, glossy Aqua-blue ball thumb.
+   input[type="range"] in the selectors so these beat the generic range rules above. */
+input[type="range"].snow-leopard-slider {
+    height: 5px;
+    border-radius: 4px;
+    background: #acacac;
+    box-shadow: inset 0px 1px 2.5px #484848, 0 0px 0 0.5px #a0a0a0;
 }
 
-#range-slider::-webkit-slider-thumb {
-    background: #5B53FF; /* Green thumb color */
+input[type="range"].snow-leopard-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, transparent 40%),
+        radial-gradient(20px 20px at 50% 120%, white 0%, rgb(85, 133, 217) 100%, rgb(85, 133, 217));
+    border: 1px solid rgb(10, 30, 99);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+    margin-top: -2px;
+}
+
+/* Pressed / dragging: the orb darkens slightly */
+input[type="range"].snow-leopard-slider:active::-webkit-slider-thumb {
+    filter: brightness(0.82);
+}
+
+input[type="range"].snow-leopard-slider:active::-moz-range-thumb {
+    filter: brightness(0.82);
+}
+
+input[type="range"].snow-leopard-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, transparent 40%),
+        radial-gradient(20px 20px at 50% 120%, white 0%, rgb(85, 133, 217) 100%, rgb(85, 133, 217));
+    border: 1px solid rgb(10, 30, 99);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .6);
 }
 
 #custom-gcode {
@@ -117,52 +210,73 @@ input[type="range"]::-webkit-slider-thumb {
 	padding: 5px 10px;
 	width: 65%;
 	outline: none;
-	background: #FFFFFF;
-	color: #000000;
-	border: 1px solid #C4D1EB;
+	background: #3a3a3a;
+	color: #c0c0c0;
+	border: 1px solid #595959;
 	border-radius: 8px;
 	transition: .3s ease;
 }
 
 #gcode-input:focus {
-	background: #F2F2F2;
-	border: 1px solid #5A7EC7;
-	border-radius: 10px;
+	border: 1px solid #6092f5;
 }
 
 #gcode-input::placeholder {
-	color: #DDDDDD;
+	color: #888888;
 }
 
+/* Snow Leopard blue pill button (sl-btn blue, from snow-leopard.css). position/overflow/isolation
+   so the ::before shine clips to the pill and sits under the text */
 #send-gcode-button {
     height: 100%;
-	background: linear-gradient(to bottom, #599bb3 5%, #408c99 100%);
-    background-color: #599bb3;
-    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    /* Snow Leopard's system font at its push-button size (still installed on current macOS) */
+    font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+    font-size: 14px;
+    padding: 2px 16px;
+    border-radius: 16px;
+    border: 1px solid #000080;
+    background:
+        linear-gradient(180deg, #ffffffd1 0%, #ffffff2e 40%),
+        linear-gradient(0deg, #ffffffb3 0%, transparent 73%),
+        linear-gradient(0deg, #0f479b 100%);
+    box-shadow: 0 1px 1px 0px rgb(65 80 101 / 50%);
+    color: #000;
     outline: none;
-    display: inline-block;
     cursor: pointer;
-    color: #ffffff;
-    border: none;
-    padding: 4px 12px;
-    text-shadow: 0px 1px 0px #3d768a;
 }
 
-#send-gcode-button:hover {
-	background:linear-gradient(to bottom, #408c99 5%, #599bb3 100%);
-	background-color:#408c99;
+/* Top shine */
+#send-gcode-button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
+    width: calc(100% - 6px);
+    height: 42%;
+    border-radius: 20px;
+    background: linear-gradient(rgba(255, 255, 255, .25), rgba(255, 255, 255, .2));
+    filter: blur(.5px);
+    pointer-events: none;
+    z-index: -1;
 }
 
+/* Slightly deeper blue while pressed */
 #send-gcode-button:active {
-	position:relative;
-	top:1px;
+    background:
+        linear-gradient(180deg, #ffffffb0 0%, #ffffff1f 40%),
+        linear-gradient(0deg, #ffffff8c 0%, transparent 73%),
+        linear-gradient(0deg, #2f69c4 100%);
 }
 
 .controller {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 
 .controllers {
@@ -216,49 +330,337 @@ input[type="range"]::-webkit-slider-thumb {
     color: #FFF;
 }
 
+/* Needle pointing down, like the Dispense button */
+.syringe-controller {
+    position: relative;
+    margin-bottom: 33px; /* where the old Set Home sat, so ▲/▼ stay centred on the syringe body */
+}
+
+/* Syringe arrows + position slider side by side */
+.syringe-group {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.syringe-slider-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+}
+
+/* Inside the plunger, so it moves with it: a few px above the thumb press, centred on the syringe's axis
+   (zero width, text centred over it). The block's top padding keeps room for it with the plunger at home. */
+.syringe-slider-block {
+    padding-top: 20px;
+    position: relative;
+    top: -23px; /* raises the syringe (not the layout) so its body is centred on the ▲/▼ beside it */
+}
+
+.syringe-position {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 28px;
+    width: 0;
+    display: flex;
+    pointer-events: none;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums; /* digits all the same width, so the text itself doesn't wobble */
+}
+
+/* --- Syringe-shaped position slider ---
+   A 56×280 drawing, centred on the syringe's axis (x = 28). The mL labels hang off the right edge
+   without taking up width, so they don't shift the centring. --pos (0–1, set by fillSyringeSlider) slides the plunger down by up to --travel;
+   the liquid shrinks to match. Layout, top to bottom:
+   thumb press 0–7, rod, flange 117–123, barrel 123–247 (inside ends at 245), hub 247–257, needle 257–280.
+   The stopper's bottom edge runs from 135 (home, full) to 245 (full travel, empty); the mL scale spans that. */
+.syringe-visual {
+    --pos: 0;
+    --capacity: 3;  /* mL over full travel; set from SYRINGE_CAPACITY_ML */
+    --travel: 110px;
+    --scale-top: 135px;    /* stopper bottom at home = full capacity */
+    --scale-bottom: 245px; /* stopper bottom at full travel = 0 mL */
+    position: relative;
+    width: 56px;
+    height: 308px;
+    cursor: grab;
+    touch-action: none; /* dragging on touch screens shouldn't scroll the page */
+    user-select: none;
+}
+
+.syringe-visual.dragging {
+    cursor: grabbing;
+}
+
+.syringe-visual > div {
+    position: absolute;
+}
+
+.syringe-plunger {
+    top: 0;
+    left: 0;
+    width: 56px;
+    height: 135px;
+    transform: translateY(calc(var(--pos) * var(--travel)));
+    transition: transform 0.5s ease-out;
+}
+
+.syringe-visual.dragging .syringe-plunger,
+.syringe-visual.dragging .syringe-liquid {
+    transition: none; /* follow the pointer exactly while dragging */
+}
+
+.syringe-plunger > div {
+    position: absolute;
+}
+
+.syringe-thumb {
+    top: 0;
+    left: 9px;
+    width: 38px;
+    height: 7px;
+    border-radius: 3px;
+    background: #eee;
+}
+
+.syringe-rod {
+    top: 7px;
+    left: 25px;
+    width: 6px;
+    height: 118px;
+    background: linear-gradient(to right, #bbb, #fff, #bbb);
+}
+
+/* Rubber stopper with two ribs */
+.syringe-stopper {
+    top: 125px;
+    left: 15px;
+    width: 26px;
+    height: 10px;
+    border-radius: 2px;
+    background: repeating-linear-gradient(to bottom, #3a3a3a 0 3px, #1e1e1e 3px 4px);
+}
+
+.syringe-liquid {
+    left: 15px;
+    width: 26px;
+    top: calc(var(--scale-top) + var(--pos) * var(--travel));
+    bottom: calc(100% - var(--scale-bottom));
+    background: linear-gradient(to right, rgb(243 33 203 / 55%) 0%, rgb(242 33 243 / 55%) 70%, rgb(240 33 243 / 70%) 100%);
+    /* background:linear-gradient(to right, rgba(33, 150, 243, 0.55) 0%, rgba(33, 150, 243, 0.4) 70%, rgb(33 150 243 / 70%) 100%); */
+    /* background: linear-gradient(to right, rgba(33, 150, 243, 0.55) 0%, rgba(33, 150, 243, 0.55) 70%, rgb(33 150 243 / 70%) 100%); */
+    transition: top 0.5s ease-out;
+}
+
+/* Glass barrel */
+.syringe-barrel {
+    top: 123px;
+    left: 13px;
+    width: 30px;
+    height: 124px;
+    box-sizing: border-box;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    background: rgba(255, 255, 255, 0.08);
+    isolation: isolate; /* so the z-index below only orders the barrel's own layers */
+}
+
+/* Tick marks: their own layer on top of the shine (::after). Short every 0.25 mL, long every 0.5 mL */
+.syringe-barrel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        repeating-linear-gradient(to bottom, #000 0 1px, transparent 1px calc(var(--travel) * 0.5 / var(--capacity)))
+            left 0 top calc(var(--scale-top) - 123px) / 11px calc(var(--travel) + 1px) no-repeat,
+        repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.85) 0 1px, transparent 1px calc(var(--travel) * 0.25 / var(--capacity)))
+            left 0 top calc(var(--scale-top) - 123px) / 6px calc(var(--travel) + 1px) no-repeat;
+}
+
+.syringe-barrel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0 0 4px 4px;
+    background: linear-gradient(to right, rgba(255, 255, 255, .65) 0%, rgba(255, 255, 255, .1) 58%, transparent 62%);
+}
+
+/* mL labels beside the barrel, centred on their tick */
+.syringe-mark {
+    position: absolute;
+    left: 47px;
+    top: calc(var(--scale-bottom) - var(--fraction) * var(--travel) - 5px);
+    font-size: 9px;
+    line-height: 10px;
+    color: rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.syringe-flange {
+    top: 117px;
+    left: 2px;
+    width: 52px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.syringe-hub {
+    top: 247px;
+    left: 22px;
+    width: 12px;
+    height: 10px;
+    border-radius: 0 0 3px 3px;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+/* Drop at the needle tip while Go! presses (.dripping, from noteDispense) */
+.syringe-drop {
+    top: 304px;
+    left: 25px;
+    width: 6px;
+    height: 7px;
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    background: rgb(242 33 213 / 80%);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.syringe-visual.dripping .syringe-drop {
+    opacity: 1;
+}
+
+.syringe-needle {
+    top: 257px;
+    left: 27px;
+    width: 2px;
+    height: 46px;
+    background: linear-gradient(to bottom, #ddd, #888);
+}
+
+/* Holds the value only; dragging is handled on .syringe-visual */
+#syringe-slider {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
 .horizontal-arrows {
     display: flex;
-    gap: 20px;
+    gap: 12px;
+}
+
+/* Snow Leopard "sl-btn" glass (from snow-leopard.css), shared by the arrows and the bottom buttons.
+   Each button sets --glass-color (its tint) and --glass-radius (its corner radius).
+   Layers: a soft white glow rising from the bottom, a bright shine across the top half (::before),
+   a darker rim, and a small drop shadow. */
+.arrow,
+.bottom-button {
+    --glass-color: #9e9e9e;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate; /* keeps the ::before shine behind the icon but inside the button */
+    background:
+        linear-gradient(0deg, rgba(255, 255, 255, 0.55) 0%, transparent 73%),
+        var(--glass-color);
+    border: none;
+    /* border: 1px solid color-mix(in srgb, var(--glass-color) 55%, black); */
+    border-radius: var(--glass-radius);
+    box-shadow: 0 1px 1px 0px rgb(65 80 101 / 50%), 0 2px 4px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s, filter 0.2s;
+}
+
+.arrow::before,
+.bottom-button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
+    width: calc(100% + 6px);
+    height: 54%;
+    border-radius: calc(var(--glass-radius) - 2px) calc(var(--glass-radius) - 2px) 40% 40% / calc(var(--glass-radius) - 2px) calc(var(--glass-radius) - 2px) 20px 20px;
+    background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.05));
+    pointer-events: none;
+    z-index: -1;
+}
+
+.arrow:active,
+.bottom-button:active {
+    filter: brightness(0.85); /* pressed: the gel darkens */
 }
 
 .arrow {
-    width: 100px;
-    height: 100px;
+    --glass-radius: 20px;
+    width: 80px;
+    height: 80px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 36px;
+    font-size: 32px;
     color: #fff;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
-    cursor: pointer;
-    transition: transform 0.2s, background 0.2s;
 }
 
 .arrow.up {
-    background-color: #4CAF50; /* Green */
+    --glass-color: #4CAF50; /* Green */
+}
+
+/* Shown but not usable on this machine (data-unsupported="disable") */
+.arrow:disabled {
+    opacity: 0.35;
+    pointer-events: none;
 }
 
 .arrow.down {
-    background-color: #f44336; /* Red */
+    --glass-color: #f44336; /* Red */
+}
+
+/* LaLi (GRBL): Y is the syringes, so the stage ▲/▼ are hidden rather than disabled, and ◀ ▶ come out of
+   the flow (the syringe is centred on its own) to sit over the waiting tiles; alignTileStrip sets left */
+body[data-machine="lali-grbl"] .controllers {
+    position: relative;
+    top: -8px; /* the whole row up a little; the tiles follow the needle */
+}
+
+body[data-machine="lali-grbl"] #stage-controller {
+    position: absolute;
+    bottom: 0%;
+    translate: 0 -50%;
+}
+
+body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
+    display: none;
 }
 
 .arrow.left {
-    background-color: #2196F3; /* Blue */
+    --glass-color: #2196F3; /* Blue */
 }
 
 .arrow.right {
-    background-color: #FF9800; /* Orange */
+    --glass-color: #FF9800; /* Orange */
 }
 
 .arrow.b-axis {
-    background-color: #E91E63; /* Pink */
+    --glass-color: #E91E63; /* Pink */
 }
 
 .arrow.c-axis {
-    background-color: #000; /* Black */
+    --glass-color: #2b2b2b; /* Black */
 }
 
 .lock-button {
@@ -282,7 +684,7 @@ input[type="range"]::-webkit-slider-thumb {
     transform: scale(1.1);
 }
 
-.arrow:active {
+.arrow:hover:active {
     transform: scale(1);
 }
 
@@ -312,15 +714,13 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .bottom-button {
-    user-select: none;
+    --glass-color: #0071cb; /* default grey; each button sets its own */
+    /* --glass-color: #3566a5; shared blue; Go!, Stop! and the active UV Light set their own */
+    --glass-radius: 18px;
     width: 60px;
     height: 60px;
-    border: none;
     padding: 10px;
     font-size: 32px;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.2s;
 }
 
 .bottom-button:hover {
@@ -363,8 +763,20 @@ input[type="range"]::-webkit-slider-thumb {
     background: #f44336;
 }
 
+#usb-status {
+    color: #fff;
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+#usb-status.dropped {
+    color: #f44336;
+    font-size: 16px;
+    font-weight: bold;
+    opacity: 1;
+}
+
 .syringe {
-    background-color: #2196F3;
     /* background-color: #E91E63; Pink, like the B buttons */
 }
 
@@ -377,7 +789,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .play {
-    background-color: #4CAF50;
+    --glass-color: #4CAF50;
     color: white;
     /* font-size: 28px; */
 }
@@ -387,28 +799,36 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .stop {
-    background-color: #f44336;
+    --glass-color: #f44336;
 }
 
-.mic {
-    background-color: hsl(0, 100%, 86%);
+
+.bottom-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .mic.listening {
     animation: glowing 750ms infinite alternate ease-in-out;
 }
 
-.fan {
-    background-color: #3fd0d4;
+/* Arrow keys turned off */
+.keyboard.off {
+    --glass-color: #616161;
 }
 
+
 .light {
-    background-color: #9e9e9e; /* grey when off */
+    /* background-color: #9e9e9e; grey when off */
 }
 
 .light.active {
-    background-color: #FFEB3B;
-    box-shadow: 0 0 12px 4px rgba(255, 235, 59, 0.7);
+    --glass-color: #9500ff;
+    --glow-rgb: 149, 0, 255; /* pulse like Listen, in purple */
+    animation: glowing 750ms infinite alternate ease-in-out;
+    /* background-color: #FFEB3B;
+    box-shadow: 0 0 12px 4px rgba(255, 235, 59, 0.7); */
 }
 
 .fan.active svg {
@@ -416,9 +836,6 @@ input[type="range"]::-webkit-slider-thumb {
     transform-origin: center;
 }
 
-.pump {
-    background-color: #2389da;
-}
 
 /* .pump.active {
     background-color: #1471be;
@@ -437,32 +854,19 @@ input[type="range"]::-webkit-slider-thumb {
     background-image: url('/static/pump.gif');
 }
 
-.camera {
-    background-color: hsl(298, 100%, 68%);
-}
 
-.dance {
-    background-color: #FF9800;
-}
 
-.home {
-    background-color: hsl(59, 100%, 81%);
-}
 
 .sweep {
-    background-color: #d8ffd9;
-    border: none;
     padding: 10px;
     font-size: 16px;
     font-weight: bold;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: background-color 0.3s, transform 0.3s;
 }
 
+/* Pulsing glow. Red by default; set --glow-rgb on the element for another colour */
 @keyframes glowing {
-    0% { box-shadow: 0 0 8px 4px rgba(255, 0, 0, 0.7); }
-    100% { box-shadow: 0 0 8px 10px rgba(255, 0, 0, 0.8); }
+    0% { box-shadow: 0 0 8px 4px rgba(var(--glow-rgb, 255, 0, 0), 0.7); }
+    100% { box-shadow: 0 0 8px 10px rgba(var(--glow-rgb, 255, 0, 0), 0.8); }
 }
 
 @keyframes spin {
@@ -473,15 +877,30 @@ input[type="range"]::-webkit-slider-thumb {
 /* --- General Mobile Styles --- */
 @media (max-width: 768px) {
     body {
-        row-gap: 20px;
+        row-gap: 18px;
         padding: 10px;
         justify-content: flex-start;
         margin-top: 15%;
         overflow-y: auto;
     }
 
+    .segmented {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .segmented button {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .slider-rows {
+        flex-direction: column; /* groups stack on narrow screens */
+        width: 100%;
+        row-gap: 15px;
+    }
+
     .slider-container {
-        flex-direction: column;
         row-gap: 15px;
         width: 100%;
     }
@@ -499,6 +918,14 @@ input[type="range"]::-webkit-slider-thumb {
         row-gap: 10px;
     }
 
+    .syringe-group {
+        gap: 10px;
+    }
+
+    .syringe-visual {
+        zoom: 0.68; /* scale the drawing down with the smaller arrows */
+    }
+
     .lock-button {
         width: 50px;
         height: 50px;
@@ -510,10 +937,10 @@ input[type="range"]::-webkit-slider-thumb {
     }
 
     .arrow {
+        --glass-radius: 15px;
         width: 70px;
         height: 70px;
         font-size: 24px;
-        border-radius: 15px;
     }
 
     #custom-gcode {
@@ -543,4 +970,92 @@ input[type="range"]::-webkit-slider-thumb {
         height: 50px;
         font-size: 24px;
     }
+}
+
+/* Side view of the tiles under the needle (LaLi). SVG units are mm. */
+#tile-strip {
+    pointer-events: none; /* never in the way of the syringe controls above it */
+    width: 870px; /* 2 px per mm across the viewBox's 430 mm */
+    max-width: 90vw;
+}
+
+#tile-strip svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.belt {
+    fill: #555;
+}
+
+.tile-body {
+    fill: #e4e0d8;
+    stroke: #161616;
+    stroke-width: 0.4;
+}
+
+.tile text {
+    fill: #161616;
+    font-size: 4.5px;
+    text-anchor: middle;
+}
+
+.tile-resin {
+    fill: rgb(242 33 213 / 80%); /* the drawn syringe's liquid */
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tile.dispensed .tile-resin {
+    opacity: 1;
+}
+
+/* Material was deposited on this tile (markTileUnderNeedle) */
+.tile.dispensed .tile-body {
+    fill: #d690ee;
+}
+
+.uv-glow {
+    fill: #7c4dff;
+    opacity: 0.08;
+    transition: opacity 0.4s;
+}
+
+#tile-strip.uv-on .uv-glow {
+    opacity: 0.25;
+}
+
+/* Soft purple glow around the whole tunnel while the UV is on */
+.uv-tunnel {
+    transition: filter 0.4s;
+}
+
+#tile-strip.uv-on .uv-tunnel {
+    filter: drop-shadow(0 0 1.5px #b388ff) drop-shadow(0 0 3px rgb(124 77 255 / 60%));
+}
+
+.uv-hood {
+    fill: none;
+    stroke: #9575cd;
+    stroke-width: 0.3;
+}
+
+/* Time in the UV tunnel, over each tile once it has gone in (.timed, from tickTunnelTimers) */
+.tile .tile-timer {
+    display: none;
+    fill: #cb77f3;
+    font-size: 5px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+.tile.timed .tile-timer {
+    display: inline;
+}
+
+.uv-tunnel text {
+    fill: #b39ddb;
+    font-size: 4.5px;
+    text-anchor: middle;
 }

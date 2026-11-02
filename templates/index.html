@@ -13,14 +13,23 @@
 </head>
 <body>
     <div id="drag-region"></div>
+    <!-- Which machine this is; decides the board setup and which controls are shown. Always visible, so you can switch even when not connected -->
+    <div id="machine-select" class="segmented" role="radiogroup" aria-label="Machine">
+        <button type="button" role="radio" data-machine="microscope">Microscope Controller 🐚🔬</button>
+        <button type="button" role="radio" data-machine="sisi">SiSi Controller 🪸🚿</button>
+        <!-- <button type="button" role="radio" data-machine="lali-marlin">LaLi (Marlin) 💉🔦</button> -->
+        <button type="button" role="radio" data-machine="lali-grbl">LaLi Controller 💉🔦</button>
+    </div>
     <div id="connection-status">
-        <h1 id="status-text">SKR Board Not Connected ❌</h1>
+        <h1 id="status-text">Board Not Connected ❌</h1>
     </div>
     <div id="main-container">
+        <div class="slider-rows">
+        <!-- Movement (left): X/Y arrows, keyboard, voice and the conveyor -->
         <div class="slider-container">
             <div>
                 <label for="speed-value">Movement Speed: <input type="number" id="speed-value" class="inline-value" min="0" step="any" value="500"> mm/min</label>
-                <input type="range" id="speed-slider" min="100" max="3500" step="100" value="500">
+                <span>🐢<input type="range" id="speed-slider" class="snow-leopard-slider" min="100" max="3500" step="100" value="500">🐇</span>
             </div>
             <!-- <div>
                 <label for="movement-range">Movement Distance: <span id="range-value">5</span> microns</label>
@@ -28,34 +37,20 @@
             </div> -->
             <div>
                 <label for="range-value">Movement Distance: <input type="number" id="range-value" class="inline-value" min="0" step="any" value="5"> mm</label>
-                <input type="range" id="range-slider" min="1" max="200" value="5">
+                <span>🐜<input type="range" id="range-slider" class="snow-leopard-slider" min="1" max="200" value="5">🐋</span>
             </div>
         </div>
-
-        <div class="controllers">
-            <div class="controller">
-                <button class="arrow up" onclick="move('Y', distance)">▲</button>
-                <div class="horizontal-arrows">
-                    <button class="arrow left" onclick="move('X', -distance)">◀</button>
-                    <button class="arrow right" onclick="move('X', distance)">▶</button>
-                </div>
-                <button class="arrow down" onclick="move('Y', -distance)">▼</button>
+        <!-- Plunger (right): the syringe arrows (B/C on Marlin, Y on GRBL) and the drag-to-position syringe. LaLi only -->
+        <div class="slider-container" data-machines="lali-marlin lali-grbl" style="display: none;">
+            <div>
+                <label for="plunger-speed-value">Plunger Speed: <input type="number" id="plunger-speed-value" class="inline-value" min="0" step="any" value="200"> mm/min</label>
+                <span>🐢<input type="range" id="plunger-speed-slider" class="snow-leopard-slider" min="10" max="1000" step="10" value="200">🐇</span>
             </div>
-
-            <!-- Extra B/C axis controls, only shown for the usbmodem1101 device -->
-            <div class="bc-group bc-axis" style="display: none;">
-                <!-- Lines linking the arrows, shown only while B and C are locked together -->
-                <div class="bc-link up"></div>
-                <div class="bc-link down"></div>
-
-                <span class="axis-label b-col">B</span>
-                <span class="axis-label c-col">C</span>
-                <button class="arrow up b-axis b-col" onclick="moveBC('B', -distance)">▲</button>
-                <button class="arrow down b-axis b-col" onclick="moveBC('B', distance)">▼</button>
-                <button id="bc-lock-button" class="lock-button" title="Lock B and C so they move together">🔓</button>
-                <button class="arrow up c-axis c-col" onclick="moveBC('C', -distance)">▲</button>
-                <button class="arrow down c-axis c-col" onclick="moveBC('C', distance)">▼</button>
+            <div>
+                <label for="plunger-distance-value">Plunger Distance: <input type="number" id="plunger-distance-value" class="inline-value" min="0" step="any" value="1.35"> mm</label>
+                <span>🐜<input type="range" id="plunger-distance-slider" class="snow-leopard-slider" min="0.25" max="10" step="0.05" value="1.35">🐋</span>
             </div>
+        </div>
         </div>
 
         <div id="custom-gcode">
@@ -63,40 +58,126 @@
             <button id="send-gcode-button" onclick="sendGCode(document.getElementById('gcode-input').value)">Send</button>
         </div>
 
-        <div id="bottom-buttons">
-            <div class="labeled-button">
-                <button id="mic-button" class="bottom-button mic">
-                    <svg xmlns="http://www.w3.org/2000/svg" id="Слой_1" data-name="Слой 1" viewBox="0 0 352.76 418.28"><defs><style>.cls-2,.cls-4{fill:none;stroke-miterlimit:10}.cls-2{stroke:#000;stroke-linecap:round;stroke-width:19px}.cls-4{stroke:#fff;stroke-width:6px}</style></defs><path d="M171 296.28a70.08 70.08 0 0 1-70-70v-147a70 70 0 0 1 140 0v147a70.08 70.08 0 0 1-70 70Z"/><path d="M171 17.28a62.07 62.07 0 0 1 62 62v147a62 62 0 0 1-124 0v-147a62.07 62.07 0 0 1 62-62m0-16a78 78 0 0 0-78 78v147a78 78 0 0 0 78 78 78 78 0 0 0 78-78v-147a78 78 0 0 0-78-78Z"/><path d="M279.6 231.91a101.75 101.75 0 0 1-101.75 101.75h-14.41A101.76 101.76 0 0 1 61.68 231.91" class="cls-2"/><path d="M170.5 333.78v75" style="stroke-width:19px;stroke:#000;fill:none;stroke-miterlimit:10"/><path d="M110 408.78h121" class="cls-1"/><path d="M93 203.28h49.59M93.42 177.28H143M93 151.28h49.59M93.42 125.28H143M93.42 99.28H143M198.94 203.02h49.59M199.35 177.02h49.59M198.94 151.02h49.59M199.35 125.02h49.59M199.35 99.02h49.59" class="cls-4"/><path d="M280 38.28a71.68 71.68 0 0 1 16.44 20.22 52.66 52.66 0 0 1 0 51.57A71.36 71.36 0 0 1 280 130.28c4.68-7.27 9-14.54 12.18-22.23a59 59 0 0 0 0-47.55c-3.12-7.69-7.49-14.96-12.18-22.22ZM312.6 0a146.51 146.51 0 0 1 28.45 38 111.25 111.25 0 0 1 8.58 22.53 100.48 100.48 0 0 1 3.12 24.06 97.47 97.47 0 0 1-3.11 24.06 111.11 111.11 0 0 1-8.58 22.54 146.33 146.33 0 0 1-28.46 38c9.4-12.68 18-25.86 24.22-40a111.53 111.53 0 0 0 9.94-44.6 100.08 100.08 0 0 0-2.63-22.72 121.92 121.92 0 0 0-7.3-21.88C330.6 25.86 322 12.68 312.6 0ZM72.75 38.64c-4.69 7.26-9.06 14.53-12.19 22.23a58.95 58.95 0 0 0 0 47.54c3.13 7.69 7.5 15 12.18 22.23a71.36 71.36 0 0 1-16.45-20.21 52.66 52.66 0 0 1 0-51.57 71.51 71.51 0 0 1 16.46-20.22ZM40.15.37c-9.41 12.67-18 25.85-24.23 40a121.56 121.56 0 0 0-7.3 21.87A99 99 0 0 0 6 85a111.36 111.36 0 0 0 9.94 44.6c6.23 14.18 14.82 27.36 24.22 40a146.16 146.16 0 0 1-28.46-38 111.11 111.11 0 0 1-8.58-22.54A96.93 96.93 0 0 1 0 85a101 101 0 0 1 3.11-24.06 111.28 111.28 0 0 1 8.59-22.53A146.46 146.46 0 0 1 40.15.37Z"/></svg>
-                </button>
-                <span class="button-label">Listen</span>
+        <div class="controllers">
+            <!-- On LaLi (GRBL) the ▲/▼ are hidden and ◀ ▶ sit over the waiting tiles (styles.css, alignTileStrip) -->
+            <div class="controller" id="stage-controller">
+                <!-- Y is the syringe axis on LaLi (GRBL), so no stage ▲/▼ there -->
+                <button class="arrow up" data-machines="microscope sisi lali-marlin" data-unsupported="disable" onclick="move('Y', distance)">▲</button>
+                <div class="horizontal-arrows">
+                    <button class="arrow left" onclick="move('X', -distance)">◀</button>
+                    <button class="arrow right" onclick="move('X', distance)">▶</button>
+                </div>
+                <button class="arrow down" data-machines="microscope sisi lali-marlin" data-unsupported="disable" onclick="move('Y', -distance)">▼</button>
             </div>
-            <button id="fan-button" class="bottom-button fan not-bc-axis">
+
+            <!-- Separate B/C syringe axes, LaLi (Marlin) only -->
+            <div class="bc-group" data-machines="lali-marlin" style="display: none;">
+                <!-- Lines linking the arrows, shown only while B and C are locked together -->
+                <div class="bc-link up"></div>
+                <div class="bc-link down"></div>
+
+                <span class="axis-label b-col">B</span>
+                <span class="axis-label c-col">C</span>
+                <button class="arrow up b-axis b-col" onclick="moveBC('B', -plungerDistance)">▲</button>
+                <button class="arrow down b-axis b-col" onclick="moveBC('B', plungerDistance)">▼</button>
+                <button id="bc-lock-button" class="lock-button" title="Lock B and C so they move together">🔓</button>
+                <button class="arrow up c-axis c-col" onclick="moveBC('C', -plungerDistance)">▲</button>
+                <button class="arrow down c-axis c-col" onclick="moveBC('C', plungerDistance)">▼</button>
+            </div>
+
+            <!-- LaLi (GRBL): both syringe motors are wired in parallel on Y, so one pair of arrows moves both.
+                 The syringe is on the left of its arrows, leaving room on the right for tiles leaving the tunnel -->
+            <div class="syringe-group" data-machines="lali-grbl" style="display: none;">
+                <!-- Absolute syringe position: top = home (fully up), bottom = full travel. Moves on release. -->
+                <div class="syringe-slider-block">
+                    <!-- Drawn syringe: drag anywhere on it to move the plunger. The hidden range input holds the value. -->
+                    <div class="syringe-visual" id="syringe-visual">
+                        <div class="syringe-plunger">
+                            <!-- Plunged distance from home; rides just above the thumb press -->
+                            <span id="syringe-position" class="syringe-position">0 mm</span>
+                            <div class="syringe-thumb"></div>
+                            <div class="syringe-rod"></div>
+                            <div class="syringe-stopper"></div>
+                        </div>
+                        <div class="syringe-liquid"></div>
+                        <div class="syringe-barrel"></div>
+                        <div class="syringe-flange"></div>
+                        <div class="syringe-hub"></div>
+                        <div class="syringe-needle"></div>
+                        <div class="syringe-drop"></div>
+                        <input type="range" id="syringe-slider" min="0" max="40" step="0.25" value="0" tabindex="-1" aria-label="Syringe position (mm below home)">
+                    </div>
+                </div>
+                <div class="controller syringe-controller">
+                    <!-- Through syringeMoveGCode, so the arrows use the same direction setting as Dispense and Go! -->
+                    <button class="arrow up" onclick="moveSyringes(-plungerDistance)">▲</button>
+                    <button class="arrow down" onclick="moveSyringes(plungerDistance)">▼</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Side view of the tiles under the drawn syringe's needle; drawn and lined up by script.js -->
+        <div id="tile-strip" data-machines="lali-grbl" style="display: none;" title="Go! starts with tile 1 under the needle"></div>
+
+
+        <div id="bottom-buttons">
+            <!-- LISTEN BUTTON -->
+            <div class="labeled-button">
+                <button id="mic-button" class="bottom-button mic">🎙️</button>
+                <span id="mic-label" class="button-label">Listen</span>
+            </div>
+            <!-- KEYBOARD BUTTON: arrow keys on/off -->
+            <div class="labeled-button">
+                <button id="keyboard-button" class="bottom-button keyboard" title="Turn arrow-key control on or off">⌨️</button>
+                <span id="keyboard-label" class="button-label">Keys On</span>
+            </div>
+            <!-- FAN BUTTON -->
+            <button id="fan-button" class="bottom-button fan" data-machines="microscope" style="display: none;">
                 <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.88 122.07"><defs><style>.cls-1{fill-rule:evenodd;}</style></defs><title>fan-blades</title><path class="cls-1" d="M67.29,82.9c-.11,1.3-.26,2.6-.47,3.9-1.43,9-5.79,14.34-8.08,22.17C56,118.45,65.32,122.53,73.27,122A37.63,37.63,0,0,0,85,119a45,45,0,0,0,9.32-5.36c20.11-14.8,16-34.9-6.11-46.36a15,15,0,0,0-4.14-1.4,22,22,0,0,1-6,11.07l0,0A22.09,22.09,0,0,1,67.29,82.9ZM62.4,44.22a17.1,17.1,0,1,1-17.1,17.1,17.1,17.1,0,0,1,17.1-17.1ZM84.06,56.83c1.26.05,2.53.14,3.79.29,9.06,1,14.58,5.16,22.5,7.1,9.6,2.35,13.27-7.17,12.41-15.09a37.37,37.37,0,0,0-3.55-11.57,45.35,45.35,0,0,0-5.76-9.08C97.77,9,77.88,14,67.4,36.63a14.14,14.14,0,0,0-1,2.94A22,22,0,0,1,78,45.68l0,0a22.07,22.07,0,0,1,6,11.13Zm-26.9-17c0-1.6.13-3.21.31-4.81,1-9.07,5.12-14.6,7-22.52C66.86,2.89,57.32-.75,49.41.13A37.4,37.4,0,0,0,37.84,3.7a44.58,44.58,0,0,0-9.06,5.78C9.37,25.2,14.39,45.08,37,55.51a14.63,14.63,0,0,0,3.76,1.14A22.12,22.12,0,0,1,57.16,39.83ZM40.66,65.42a52.11,52.11,0,0,1-5.72-.24c-9.08-.88-14.67-4.92-22.62-6.73C2.68,56.25-.83,65.84.16,73.74A37.45,37.45,0,0,0,3.9,85.25a45.06,45.06,0,0,0,5.91,9c16,19.17,35.8,13.87,45.91-8.91a15.93,15.93,0,0,0,.88-2.66A22.15,22.15,0,0,1,40.66,65.42Z"/></svg>
             </button>
-            <!-- Light strip on FAN0; only on the B/C machine, where the fan button is hidden -->
-            <div class="labeled-button bc-axis" style="display: none;">
-                <button id="light-button" class="bottom-button light" title="UV light strip on/off">💡</button>
-                <span class="button-label">UV Light</span>
-            </div>
-            <button id="pump-button" class="bottom-button pump not-bc-axis">
+            <!-- PUMP BUTTON -->
+            <button id="pump-button" class="bottom-button pump" data-machines="sisi" style="display: none;">
                 <div class="pump-icon"></div>
             </button>
+            <!-- CAMERA BUTTON -->
             <!-- <button id="camera-button" class="bottom-button camera">
                 <svg xmlns="http://www.w3.org/2000/svg" id="Слой_1" data-name="Слой 1" viewBox="0 0 681 681"><defs><style>.cls-2{fill:none;stroke:#000;stroke-miterlimit:10;stroke-width:10px}</style></defs><path d="M340.5 84a255.6 255.6 0 1 1-99.84 20.15A254.88 254.88 0 0 1 340.5 84m0-20C187.79 64 64 187.79 64 340.5S187.79 617 340.5 617 617 493.21 617 340.5 493.21 64 340.5 64Z"/><path d="M340.5 40a299.48 299.48 0 1 1-117 23.6 298.63 298.63 0 0 1 117-23.6m0-40C152.45 0 0 152.45 0 340.5S152.45 681 340.5 681 681 528.55 681 340.5 528.55 0 340.5 0Z"/><path d="M386.98 260h-92.96l-46.47 80.5 46.47 80.5h92.96l46.47-80.5-46.47-80.5z"/><path d="M382 262s-49-127.62-219-127.62M294.53 264.9S159.94 241 72.14 386.52M251.59 343.24s-85.66 106.54-.15 253.47M296.56 414.52S345 542.37 515 543.13M385.12 415.2s134.34 25.31 223.6-119.37M427.51 340.92s81.67-109.64-9.2-253.31" class="cls-2"/></svg>
             </button> -->
-            <button id="dance-button" class="bottom-button dance not-bc-axis">💃</button>
-            <div class="labeled-button">
-                <button id="home-button" class="bottom-button home">🏠</button>
+            <button id="dance-button" class="bottom-button dance" data-machines="microscope sisi" style="display: none;">💃</button>
+            <!-- HOME BUTTON -->
+            <!-- <div class="labeled-button">
+                <button id="home-button" class="bottom-button home">🏡</button>
                 <span class="button-label">Home</span>
+            </div> -->
+            <!-- Set Home (LaLi GRBL): the syringes are at 1.5 mL and tile 1 is under the needle, right now -->
+            <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
+                <button id="set-home-button" class="bottom-button home" onclick="setSyringeHome()" title="Mark the current syringe position as 1.5 mL and the current conveyor position as tile 1">🏡</button>
+                <span class="button-label">Set Home</span>
             </div>
-            <div class="labeled-button bc-axis" style="display: none;">
+            <!-- UV light: FAN0 on LaLi (Marlin), spindle PWM (M3/M5) on LaLi (GRBL) -->
+            <div class="labeled-button" data-machines="lali-marlin lali-grbl" style="display: none;">
+                <button id="light-button" class="bottom-button light" title="UV light strip on/off">☢️</button>
+                <span class="button-label">UV Light</span>
+            </div>
+            <!-- DISPENSE BUTTON -->
+            <!-- <div class="labeled-button" data-machines="lali-marlin lali-grbl" style="display: none;">
                 <button id="syringe-button" class="bottom-button syringe" title="Syringe press: B and C down 1.5 mm">
                     <span class="syringe-icon">💉</span>
                 </button>
                 <span id="syringe-label" class="button-label">Dispense</span>
+            </div> -->
+            <!-- Prime is GRBL G-code (syringes on Y), so LaLi (GRBL) only -->
+            <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
+                <button id="prime-button" class="bottom-button prime" title="Prime the syringes: 3mm press">💧</button>
+                <span id="prime-label" class="button-label">Prime</span>
             </div>
-            <div class="labeled-button bc-axis" style="display: none;">
-                <button id="play-button" class="bottom-button play" title="Prime 2× and move the conveyor into place; UV on; run 12×: syringe press, pause, advance; advance 9× more every 5 s through the UV tunnel; UV off and pull syringes back up">▶</button>
+            <!-- Syringes and conveyor back to their Set Home positions; LaLi (GRBL) only -->
+            <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
+                <button id="reset-button" class="bottom-button reset" title="Pull the syringes up and run the conveyor back to their Set Home positions">↩️</button>
+                <span id="reset-label" class="button-label">Reset</span>
+            </div>
+            <div class="labeled-button" data-machines="lali-marlin lali-grbl" style="display: none;">
+                <button id="play-button" class="bottom-button play" title="Prime the syringes and place the first row first. UV on; run 12×: settle, syringe press, advance; advance 11× more through the UV tunnel; UV off; pull syringes back up">▶</button>
                 <span class="button-label">Go!</span>
             </div>
             <div class="labeled-button" onclick="emergencyStop()">
@@ -109,6 +190,8 @@
             <div id="run-progress-track"><div id="run-progress-fill"></div></div>
             <span id="run-progress-label"></span>
         </div>
+        <!-- How long the board's USB connection has lasted (from /connection, checked every second) -->
+        <div id="usb-status"></div>
         <!-- <div id="preset-buttons">
             <button id="sweep-10s" class="bottom-button sweep">10s 🧹</button>
             <button id="sweep-15s" class="bottom-button sweep">15s 🧹</button>

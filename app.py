@@ -4,6 +4,8 @@ import time
 import serial.tools.list_ports as list_ports
 import atexit
 import socket
+import threading
+import logging
 
 app = Flask(__name__)
 
@@ -23,10 +25,12 @@ def get_local_ip():
 def wait_for_ok(timeout=30):
     start = time.time()
     while time.time() - start < timeout:
-        response = ser.readline().decode().strip()
+        if stop_requested.is_set():
+            raise Exception("Stopped by user")
+        response = ser.readline().decode(errors='ignore').strip()
         if not response:
             continue
-        print(f"GRBL: {response}")
+        print(f"Board: {response}")
         if response.startswith('ok'):
             return True
         if response.startswith('error'):
@@ -39,52 +43,74 @@ def wait_for_ok(timeout=30):
 def home():
     return render_template('index.html')
 
-# Known device profiles.
+# The machines the page can control (the segmented control at the top of the page).
 # 'firmware' decides how the board is initialized and which G-code dialect the page uses
 # (e.g. G4 P is seconds on GRBL but milliseconds on Marlin).
+MACHINES = {
+    'microscope':  {'name': 'Microscope controller', 'firmware': 'marlin', 'bc_axes': False, 'fan_on_at_start': True},
+    'sisi':        {'name': 'SiSi Controller',       'firmware': 'grbl',   'bc_axes': False},
+    'lali-marlin': {'name': 'LaLi (Marlin)',         'firmware': 'marlin', 'bc_axes': True},
+    'lali-grbl':   {'name': 'LaLi (GRBL)',           'firmware': 'grbl',   'bc_axes': False},  # syringes on Y
+}
+
+# Known boards by USB ID, and which machine to pre-select when one is found.
+# A machine chosen on the page overrides this.
 DEVICE_PROFILES = {
     'grbl': {
         'vid': 0x2341,  # Arduino
         'pid': 0x0043,  # Uno R3
         'name': 'GRBL Arduino',
-        'firmware': 'grbl',
-        'baudrate': 115200
+        'default_machine': 'sisi',
     },
     'skr': {
         'vid': 0x1D50,  # BTT SKR
         'pid': 0x6029,
         'name': 'BTT SKR Board',
-        'firmware': 'marlin',
-        'baudrate': 115200
+        'default_machine': 'microscope',
     },
     'rumba': {
         'vid': 0x2341,  # Arduino
         'pid': 0x0042,  # Mega 2560 R3 (the RUMBA's USB chip reports as a Mega)
         'name': 'RUMBA Board',
-        'firmware': 'marlin',
-        'bc_axes': True,  # LaLi: B/C syringe axes
-        'baudrate': 115200
+        'default_machine': 'lali-marlin',
     }
 }
+FALLBACK_MACHINE = 'sisi'  # for boards not recognised by USB ID
 
-current_device_type = None
-current_firmware = None
+current_machine = None
 current_port = None
+stop_requested = threading.Event()
+connected_at = None  # time.time() when the current connection was set up
+dropped_at = None    # when the watcher saw that connection's USB device disappear
 
-# Ports that have the extra B and C axes even if the board isn't recognised by USB ID
-MULTI_AXIS_PORT_IDS = ['usbmodem1101']
+def format_duration(seconds):
+    minutes, secs = divmod(int(seconds), 60)
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}:{minutes:02}:{secs:02}" if hours else f"{minutes}:{secs:02}"
 
-def has_bc_axes(device_type, port):
-    if DEVICE_PROFILES.get(device_type, {}).get('bc_axes'):
-        return True
-    return bool(port) and any(port_id in port for port_id in MULTI_AXIS_PORT_IDS)
+def watch_connection():
+    """Every second, check the board's USB device is still there, and log how long the connection
+    lasted when it drops. Only asks the OS how many bytes are waiting, so nothing is sent to the board."""
+    global dropped_at
+    while True:
+        time.sleep(1)
+        port = ser
+        if port is None or dropped_at is not None:
+            continue
+        try:
+            port.in_waiting  # fails with "Device not configured" once the USB device is gone
+        except Exception as e:  # a closed port can fail differently, so catch everything: the watcher must keep running
+            if port is not ser or not port.is_open:
+                continue  # closed on purpose (shutdown or switching machines), not a drop
+            dropped_at = time.time()
+            print(f"USB connection lost at {time.strftime('%H:%M:%S')}, "
+                  f"{format_duration(dropped_at - connected_at)} after connecting ({e})")
 
-def firmware_for(device_type):
-    # Unrecognised boards are initialized as GRBL (see detect_device)
-    return DEVICE_PROFILES.get(device_type, {}).get('firmware', 'grbl')
+def current_firmware():
+    return MACHINES[current_machine]['firmware'] if current_machine else None
 
 def detect_device():
-    """Detect connected device by VID/PID and return device type."""
+    """Find the first board and return (device_type, port)."""
     ports = list_ports.comports()
     for port in ports:
         for device_type, profile in DEVICE_PROFILES.items():
@@ -95,14 +121,14 @@ def detect_device():
     # Fallback — try name matching
     for port in ports:
         if 'usbmodem' in port.device or 'usbserial' in port.device:
-            print(f"Unknown device on {port.device} — defaulting to GRBL")
-            return 'grbl', port.device
+            print(f"Unknown device on {port.device}")
+            return None, port.device
     
     return None, None
 
-def initialize_grbl(port):
-    """Initialize GRBL Arduino."""
-    print(f"Initializing GRBL board on port {port}...")
+def initialize_grbl(port, name):
+    """Initialize a GRBL board."""
+    print(f"Initializing {name} (GRBL) on port {port}...")
     global ser
     ser = serial.Serial(port, 115200, timeout=1)
     
@@ -117,11 +143,11 @@ def initialize_grbl(port):
     ser.write(b"$21=0\n"); ser.flush(); wait_for_ok() # hard limits off
     ser.write(b"G91\n"); ser.flush(); wait_for_ok()   # relative mode
     
-    return "GRBL initialized"
+    return f"{name} initialized (GRBL)"
 
 def initialize_marlin(port, name, fan_on):
-    """Initialize a Marlin board (BTT SKR, RUMBA)."""
-    print(f"Initializing {name} on port {port}...")
+    """Initialize a Marlin board."""
+    print(f"Initializing {name} (Marlin) on port {port}...")
     global ser
     ser = serial.Serial(port, 115200, timeout=1)
     
@@ -136,58 +162,114 @@ def initialize_marlin(port, name, fan_on):
     ser.write(b"M211 S0\n"); ser.flush(); wait_for_ok()    # disable endstops
     ser.write(b"G91\n"); ser.flush(); wait_for_ok()        # relative mode
     
-    return f"{name} initialized"
+    return f"{name} initialized (Marlin)"
+
+def shutdown_board():
+    """Switch outputs off, release the motors and close the port. Safe to call when not connected."""
+    global ser, current_machine, current_port, connected_at, dropped_at
+    if ser is None:
+        return
+    try:
+        # Skipped if setup failed partway: we don't know which dialect the board speaks
+        if current_machine:
+            if current_firmware() == 'grbl':
+                ser.write(b"M9\n")    # coolant off (SiSi pump)
+                ser.write(b"M5\n")    # spindle off (LaLi GRBL UV light)
+            else:
+                ser.write(b"M107\n")  # FAN0 off (microscope fan / LaLi Marlin UV light)
+            ser.flush()
+            ser.write(b"M84\n")       # disable all steppers
+            ser.flush()
+            time.sleep(0.5)           # give commands time to execute
+    except Exception as e:
+        print(f"Shutdown error: {e}")
+    finally:
+        try:
+            ser.close()
+        except Exception:
+            pass
+        ser = None
+        current_machine = None
+        current_port = None
+        connected_at = None
+        dropped_at = None
+
+def connection_info(message, status, detected_machine=None):
+    return jsonify({
+        "message": message,
+        "machine": current_machine,
+        "detected_machine": detected_machine,
+        "firmware": current_firmware(),
+        "port": current_port,
+        "has_bc_axes": bool(current_machine and MACHINES[current_machine]['bc_axes']),
+        "machines": MACHINES,
+        "status": status
+    }), status
 
 @app.route('/initialize')
 def initialize():
-    global ser, current_device_type, current_firmware, current_port
-    
+    """Connect to the board, set up for the machine in ?machine= (or the detected default)."""
+    global current_machine, current_port, connected_at, dropped_at
+
+    requested = request.args.get('machine')
+    if requested and requested not in MACHINES:
+        return connection_info(f"Unknown machine '{requested}'", 400)
+
+    # Already set up for this machine: nothing to do
+    if ser and (requested is None or requested == current_machine):
+        return connection_info(f"Already initialized as {MACHINES[current_machine]['name']}", 200)
+
+    # Switching machines: shut the board down cleanly, then set it up again for the new machine
     if ser:
-        return jsonify({
-            "message": f"Already initialized as {current_device_type}",
-            "device_type": current_device_type,
-            "firmware": current_firmware,
-            "port": current_port,
-            "has_bc_axes": has_bc_axes(current_device_type, current_port),
-            "status": 200
-        }), 200
-    
+        print(f"Switching from {current_machine} to {requested}")
+        shutdown_board()
+
+    stop_requested.clear()  # an earlier emergency stop shouldn't cancel this setup
+
     try:
         device_type, port = detect_device()
-        
-        if not device_type or not port:
-            return jsonify({
-                "message": "No compatible device detected",
-                "status": 500
-            }), 500
-        
-        firmware = firmware_for(device_type)
-        if firmware == 'grbl':
-            message = initialize_grbl(port)
-        else:
-            profile = DEVICE_PROFILES[device_type]
-            # On the SKR, FAN0 is the cooling fan; on the RUMBA it's the UV light, which should start off
-            message = initialize_marlin(port, profile['name'], fan_on=(device_type == 'skr'))
-        
-        current_device_type = device_type
-        current_firmware = firmware
-        current_port = port
-        
-        return jsonify({
-            "message": message,
-            "device_type": device_type,
-            "firmware": firmware,
-            "port": port,
-            "has_bc_axes": has_bc_axes(device_type, port),
-            "status": 200
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            "message": f"Failed to initialize: {e}",
-            "status": 500
-        }), 500
+        if not port:
+            return connection_info("No compatible device detected", 500)
 
+        detected_machine = DEVICE_PROFILES[device_type]['default_machine'] if device_type else FALLBACK_MACHINE
+        machine = requested or detected_machine
+        profile = MACHINES[machine]
+
+        if profile['firmware'] == 'grbl':
+            message = initialize_grbl(port, profile['name'])
+        else:
+            message = initialize_marlin(port, profile['name'], fan_on=profile.get('fan_on_at_start', False))
+
+        current_machine = machine
+        current_port = port
+        connected_at = time.time()
+        dropped_at = None
+        print(f"Connected at {time.strftime('%H:%M:%S')} on {port}")
+        return connection_info(message, 200, detected_machine)
+
+    except Exception as e:
+        # Don't leave a half-initialized connection behind, so the next attempt starts fresh
+        shutdown_board()
+        return connection_info(f"Failed to initialize: {e}", 500)
+
+@app.route("/stop", methods=["POST"])
+def stop():
+    """Emergency stop: halts motion, clears queued commands and switches the outputs off.
+    Written straight to the port so it doesn't wait behind other commands."""
+    if not ser:
+        return jsonify({"error": "Serial connection not established"}), 500
+    stop_requested.set()  # makes any request waiting on the board give up
+    if current_firmware() == 'grbl':
+        ser.write(b"!")      # feed hold: stop motion immediately
+        ser.flush()
+        time.sleep(0.1)
+        ser.write(b"\x18")   # soft reset: clear the queued commands; also switches spindle (UV) and coolant off
+    else:
+        ser.write(b"M410\n") # quickstop
+        ser.write(b"M107\n") # FAN0 off (microscope fan / LaLi Marlin UV light); reset already does this on GRBL
+    ser.flush()
+    print("Emergency stop sent")
+    return jsonify({"message": "Stop sent"}), 200
 
 @app.route("/send_gcode", methods=["POST"])
 def send_gcode():
@@ -198,6 +280,8 @@ def send_gcode():
     if not gcode:
         return jsonify({"error": "No G-code provided"}), 400
 
+    stop_requested.clear()  # a new command after an emergency stop
+
     try:
         # Always flush buffer and clear alarm before sending
         ser.flushInput()
@@ -207,7 +291,8 @@ def send_gcode():
         time.sleep(0.15)
         ser.flushInput()  # discard the ok from $X
 
-        if current_firmware == 'grbl':
+        if current_firmware() == 'grbl':
+            # Also needed after an emergency stop, since GRBL's soft reset goes back to absolute mode
             ser.write(b"G91\n")
             ser.flush()
             wait_for_ok()
@@ -237,6 +322,26 @@ def send_gcode():
             print(f"Recovery failed: {recovery_error}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/connection")
+def connection():
+    """How long the board has been connected, or how long it lasted before its USB connection dropped.
+    The page polls this every second."""
+    if connected_at is None:
+        return jsonify({"state": "none"})
+    end = dropped_at or time.time()
+    return jsonify({
+        "state": "dropped" if dropped_at else "connected",
+        "seconds": round(end - connected_at),
+        "duration": format_duration(end - connected_at),
+    })
+
+class QuietConnectionPolls(logging.Filter):
+    """Keeps the once-a-second /connection polls out of the terminal log."""
+    def filter(self, record):
+        return '/connection ' not in record.getMessage()
+
+logging.getLogger('werkzeug').addFilter(QuietConnectionPolls())
+
 @app.route("/available-urls")
 def get_available_urls():
     """Returns the local network URLs where the Flask app is accessible."""
@@ -252,45 +357,11 @@ def get_available_urls():
 @app.route("/cleanup")
 def cleanup():
     print("Cleaning up before exiting...")
+    shutdown_board()
+    return jsonify({"message": "Cleanup complete"}), 200
 
-    if ser is None:
-        return jsonify({"message": "Nothing to clean up"}), 200
-
-    try:
-        if current_firmware == 'grbl':
-            ser.write(b"M9\n")    # pump off
-            ser.flush()
-            ser.write(b"M84\n")   # disable all steppers
-            ser.flush()
-            time.sleep(0.5)       # give commands time to execute
-            ser.close()
-
-        elif current_firmware == 'marlin':
-            ser.write(b"M107\n")  # FAN0 off (SKR fan / RUMBA UV light)
-            ser.flush()
-            ser.write(b"M84\n")   # disable all steppers
-            ser.flush()
-            time.sleep(0.5)
-            ser.close()
-
-        else:
-            # Unknown device type — try generic stepper disable
-            ser.write(b"M84\n")
-            ser.flush()
-            time.sleep(0.5)
-            ser.close()
-
-        return jsonify({"message": "Cleanup complete"}), 200
-
-    except Exception as e:
-        print(f"Cleanup error: {e}")
-        try:
-            ser.close()  # close even if commands failed
-        except:
-            pass
-        return jsonify({"message": f"Cleanup error: {e}"}), 500
-
-atexit.register(cleanup)
+atexit.register(shutdown_board)
 
 if __name__ == "__main__":
+    threading.Thread(target=watch_connection, daemon=True).start()
     app.run(host="0.0.0.0", port=5050, debug=False)
