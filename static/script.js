@@ -630,6 +630,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const selected = button.dataset.machine === machine;
             button.classList.toggle('active', selected);
             button.setAttribute('aria-checked', selected);
+            // Tab title follows the machine, from its button's name without the emoji ("LaLi Controller")
+            if (selected) document.title = button.textContent.replace(/[^\p{L}\p{N}\s()-]/gu, '').replace(/\s+/g, ' ').trim();
         });
     }
 
@@ -1061,6 +1063,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     danceButton.addEventListener('click', function() {
         dance();
+    });
+
+    // "Fan On" / "Pump Off" etc. follow the button's state, however it changed (click, voice, connect, Stop)
+    [[fanButton, 'fan-label', 'Fan'], [pumpButton, 'pump-label', 'Pump']].forEach(([button, labelId, name]) => {
+        const label = document.getElementById(labelId);
+        const show = () => { label.textContent = `${name} ${button.classList.contains('active') ? 'On' : 'Off'}`; };
+        new MutationObserver(show).observe(button, { attributes: true, attributeFilter: ['class'] });
+        show();
     });
 
     // Home and Dispense may be commented out in the HTML; ?. keeps the rest of setup running without them
