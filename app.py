@@ -90,8 +90,10 @@ def format_duration(seconds):
 
 def watch_connection():
     """Every second, check the board's USB device is still there, and log how long the connection
-    lasted when it drops. Only asks the OS how many bytes are waiting, so nothing is sent to the board."""
-    global dropped_at
+    lasted when it drops. Only asks the OS how many bytes are waiting, so nothing is sent to the board.
+    On a drop it closes the dead port and forgets it (keeping the times for /connection), so the next
+    /initialize looks for the board again: the page keeps asking until it's plugged back in."""
+    global dropped_at, ser
     while True:
         time.sleep(1)
         port = ser
@@ -105,6 +107,12 @@ def watch_connection():
             dropped_at = time.time()
             print(f"USB connection lost at {time.strftime('%H:%M:%S')}, "
                   f"{format_duration(dropped_at - connected_at)} after connecting ({e})")
+            try:
+                port.close()
+            except Exception:
+                pass
+            if ser is port:
+                ser = None  # nothing to send to; /initialize will set the board up again when it's back
 
 def current_firmware():
     return MACHINES[current_machine]['firmware'] if current_machine else None
@@ -141,6 +149,7 @@ def initialize_grbl(port, name):
     ser.write(b"$X\n"); ser.flush(); wait_for_ok()    # clear alarm
     ser.write(b"$20=0\n"); ser.flush(); wait_for_ok() # soft limits off
     ser.write(b"$21=0\n"); ser.flush(); wait_for_ok() # hard limits off
+    ser.write(b"$1=25\n"); ser.flush(); wait_for_ok()  # motors off 25 ms after each move (Go! holds them with $1=255 while it runs)
     ser.write(b"G91\n"); ser.flush(); wait_for_ok()   # relative mode
     
     return f"{name} initialized (GRBL)"
@@ -215,7 +224,7 @@ def initialize():
     if requested and requested not in MACHINES:
         return connection_info(f"Unknown machine '{requested}'", 400)
 
-    # Already set up for this machine: nothing to do
+    # Already set up for this machine: nothing to do. (After a drop ser is None, so it sets the board up again.)
     if ser and (requested is None or requested == current_machine):
         return connection_info(f"Already initialized as {MACHINES[current_machine]['name']}", 200)
 
@@ -336,9 +345,11 @@ def connection():
     })
 
 class QuietConnectionPolls(logging.Filter):
-    """Keeps the once-a-second /connection polls out of the terminal log."""
+    """Keeps the once-a-second /connection polls, and the page's reconnect attempts while no board is
+    plugged in (/initialize?...&auto=1), out of the terminal log."""
     def filter(self, record):
-        return '/connection ' not in record.getMessage()
+        message = record.getMessage()
+        return '/connection ' not in message and 'auto=1' not in message
 
 logging.getLogger('werkzeug').addFilter(QuietConnectionPolls())
 

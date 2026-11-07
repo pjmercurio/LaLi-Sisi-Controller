@@ -2,7 +2,7 @@ body {
     display: flex;
     justify-content: center;
     flex-direction: column;
-    row-gap: 24px;
+    row-gap: 26px;
     align-items: center;
     height: 100vh;
     background: linear-gradient(135deg, #2b2b2b, #161616);
@@ -18,6 +18,46 @@ h1 {
 
 #main-container {
     display: none;
+}
+
+/* No board connected: a small crossed-out plug in the top-left corner, just right of the macOS window buttons
+   (the Electron app puts them at x 15, y 15). Above the drag region, and no-drag so its tooltip shows on hover */
+#no-board-icon {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(244, 67, 54, 0.18);
+    font-size: 15px;
+    -webkit-app-region: no-drag;
+    cursor: default;
+    user-select: none;
+}
+
+#no-board-icon[hidden] {
+    display: none;
+}
+
+#no-board-icon span {
+    filter: grayscale(0.3);
+}
+
+/* The red slash across the plug */
+#no-board-icon::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 2px;
+    border-radius: 1px;
+    background: #f44336;
+    transform: rotate(-45deg);
+    box-shadow: 0 0 0 1px rgba(22, 22, 22, 0.8);
 }
 
 /* Machine picker: one row of joined buttons, the selected one highlighted */
@@ -53,6 +93,33 @@ h1 {
     background: #fff;
     color: #161616;
     font-weight: bold;
+}
+
+/* Plunger Distance's label with its mm / µL switch beside it, centred like the other slider labels */
+.plunger-distance-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Overrides the slider row's big emoji spans */
+.slider-container .plunger-distance-mm {
+    display: inline;
+    font-size: inherit;
+}
+
+/* A small segmented control, sized to sit in a line of text */
+.segmented.unit-switch {
+    padding: 2px;
+    gap: 2px;
+    border-radius: 7px;
+}
+
+.segmented.unit-switch button {
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 12px;
 }
 
 /* While connecting / switching machines */
@@ -96,8 +163,29 @@ h1 {
     display: flex;
     align-items: center;
     column-gap: 4px;
-    font-size: 18pt;
+    font-size: 20pt;
     user-select: none;
+}
+
+/* A smaller emoji at the end of a slider (the small 💧) that still takes a full-size emoji's room, so the
+   slider keeps its width and lines up with the one above: an invisible full-size copy sets the size and the
+   small one sits centred on top of it */
+.slider-container span.small-emoji {
+    display: grid;
+    place-items: center;
+}
+
+.slider-container span.small-emoji > span {
+    display: block;
+    grid-area: 1 / 1;
+}
+
+.slider-container span.small-emoji-space {
+    visibility: hidden;
+}
+
+.slider-container span.small-emoji-glyph {
+    font-size: 10pt;
 }
 
 input[type="range"] {
@@ -135,12 +223,13 @@ input[type="range"].snow-leopard-slider {
 
 input[type="range"].snow-leopard-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background:
+        radial-gradient(30px 16px at 50% 15%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.24) 46%, transparent 50%),
         linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, transparent 40%),
-        radial-gradient(20px 20px at 50% 120%, white 0%, rgb(85, 133, 217) 100%, rgb(85, 133, 217));
+        radial-gradient(20px 20px at 50% 120%, white 0%, rgb(26 109 255) 100%, rgb(26 109 255));
     border: 1px solid rgb(10, 30, 99);
     box-shadow: 0 1px 2px rgba(0, 0, 0, .6);
     margin-top: -2px;
@@ -167,7 +256,7 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
 }
 
 #custom-gcode {
-    width: 300px;
+    width: 350px;
     display: flex;
     justify-content: space-evenly;
 }
@@ -264,8 +353,20 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
     z-index: -1;
 }
 
+/* Nothing to send: a flat grey pill, like a dimmed Aqua button */
+#send-gcode-button:disabled {
+    background:
+        linear-gradient(180deg, #ffffffb0 0%, #ffffff2e 40%),
+        linear-gradient(0deg, #ffffff80 0%, transparent 73%),
+        linear-gradient(0deg, #9a9a9a 100%);
+    border-color: #6e6e6e;
+    color: #5a5a5a;
+    opacity: 0.6;
+    cursor: default;
+}
+
 /* Slightly deeper blue while pressed */
-#send-gcode-button:active {
+#send-gcode-button:active:not(:disabled) {
     background:
         linear-gradient(180deg, #ffffffb0 0%, #ffffff1f 40%),
         linear-gradient(0deg, #ffffff8c 0%, transparent 73%),
@@ -330,6 +431,30 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
     color: #FFF;
 }
 
+/* Start Volume presets (LaLi GRBL): a smaller segmented control hanging just below ▼, out of the flow so
+   the arrows stay centred on the syringe */
+#syringe-preset {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    translate: -50% 0;
+    padding: 3px;
+    gap: 3px;
+    border-radius: 8px;
+}
+
+/* Disabled after the board reconnects, until Set Home */
+#syringe-preset button:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+#syringe-preset button {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+}
+
 /* Needle pointing down, like the Dispense button */
 .syringe-controller {
     position: relative;
@@ -354,7 +479,7 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
 /* Inside the plunger, so it moves with it: a few px above the thumb press, centred on the syringe's axis
    (zero width, text centred over it). The block's top padding keeps room for it with the plunger at home. */
 .syringe-slider-block {
-    padding-top: 20px;
+    padding-top: 24px;
     position: relative;
     top: -23px; /* raises the syringe (not the layout) so its body is centred on the ▲/▼ beside it */
 }
@@ -373,24 +498,38 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
     font-variant-numeric: tabular-nums; /* digits all the same width, so the text itself doesn't wobble */
 }
 
+/* The readout is 0 wide (to centre it), so its number and unit must not shrink, or the box cuts "2.77" to "2" */
+.syringe-position > * {
+    flex: none;
+}
+
+.syringe-position .inline-value {
+    pointer-events: auto; /* the readout ignores the pointer, but its number can be clicked to type in */
+}
+
 /* --- Syringe-shaped position slider ---
    A 56×280 drawing, centred on the syringe's axis (x = 28). The mL labels hang off the right edge
    without taking up width, so they don't shift the centring. --pos (0–1, set by fillSyringeSlider) slides the plunger down by up to --travel;
    the liquid shrinks to match. Layout, top to bottom:
    thumb press 0–7, rod, flange 117–123, barrel 123–247 (inside ends at 245), hub 247–257, needle 257–280.
-   The stopper's bottom edge runs from 135 (home, full) to 245 (full travel, empty); the mL scale spans that. */
+   The stopper's bottom edge runs from 135 (3 mL) to 245 (0 mL); the mL scale spans that. The plunger itself
+   only goes from 2.77 mL (Set Home, Y0) to 0.1 mL (full travel, Y44). */
 .syringe-visual {
     --pos: 0;
-    --capacity: 3;  /* mL over full travel; set from SYRINGE_CAPACITY_ML */
+    --capacity: 3;  /* mL over the drawn scale; set from SYRINGE_CAPACITY_ML */
     --travel: 110px;
-    --scale-top: 135px;    /* stopper bottom at home = full capacity */
-    --scale-bottom: 245px; /* stopper bottom at full travel = 0 mL */
+    --scale-top: 135px;    /* stopper bottom at SYRINGE_CAPACITY_ML */
+    --scale-bottom: 245px; /* stopper bottom at 0 mL */
     position: relative;
     width: 56px;
     height: 308px;
-    cursor: grab;
     touch-action: none; /* dragging on touch screens shouldn't scroll the page */
     user-select: none;
+}
+
+/* Draggable only after Set Home (body.home-set) */
+body.home-set .syringe-visual {
+    cursor: grab;
 }
 
 .syringe-visual.dragging {
@@ -411,8 +550,10 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
 }
 
 .syringe-visual.dragging .syringe-plunger,
-.syringe-visual.dragging .syringe-liquid {
-    transition: none; /* follow the pointer exactly while dragging */
+.syringe-visual.dragging .syringe-liquid,
+.syringe-visual.tracking .syringe-plunger,
+.syringe-visual.tracking .syringe-liquid {
+    transition: none; /* follow the pointer exactly while dragging, or the motion model during Reset */
 }
 
 .syringe-plunger > div {
@@ -545,7 +686,7 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
     top: 257px;
     left: 27px;
     width: 2px;
-    height: 46px;
+    height: 36px;
     background: linear-gradient(to bottom, #ddd, #888);
 }
 
@@ -558,8 +699,27 @@ input[type="range"].snow-leopard-slider::-moz-range-thumb {
     pointer-events: none;
 }
 .horizontal-arrows {
+    position: relative;
     display: flex;
     gap: 12px;
+}
+
+/* Above ◀ ▶ while the conveyor moves (and above the syringe ▲ while the syringes move), out of the flow so nothing shifts */
+.moving-status {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 6px;
+    text-align: center;
+    font-size: 12px;
+    color: #bbb;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.moving-status[hidden] {
+    display: none;
 }
 
 /* Snow Leopard "sl-btn" glass (from snow-leopard.css), shared by the arrows and the bottom buttons.
@@ -639,7 +799,7 @@ body[data-machine="lali-grbl"] .controllers {
 
 body[data-machine="lali-grbl"] #stage-controller {
     position: absolute;
-    bottom: 0%;
+    bottom: 4%;
     translate: 0 -50%;
 }
 
@@ -688,6 +848,22 @@ body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
     transform: scale(1);
 }
 
+/* Its arrow key was just pressed (flashArrowForKey): a brief glow in the button's own colour */
+.arrow.key-glow {
+    animation: key-glow 1s ease-out;
+}
+
+@keyframes key-glow {
+    0% {
+        filter: brightness(1.25);
+        box-shadow: 0 1px 1px 0px rgb(65 80 101 / 50%), 0 0 18px 6px color-mix(in srgb, var(--glass-color) 75%, white);
+    }
+    100% {
+        filter: none;
+        box-shadow: 0 1px 1px 0px rgb(65 80 101 / 50%), 0 2px 4px rgba(0, 0, 0, 0.35);
+    }
+}
+
 #bottom-buttons {
     display: flex;
     justify-content: center;
@@ -713,6 +889,13 @@ body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
     white-space: nowrap;
 }
 
+/* Labels too long for one line next to their neighbours ("Reset\nSyringes"): split at the \n */
+.button-label.two-line {
+    white-space: pre;
+    text-align: center;
+    line-height: 1.2;
+}
+
 .bottom-button {
     --glass-color: #0071cb; /* default grey; each button sets its own */
     /* --glass-color: #3566a5; shared blue; Go!, Stop! and the active UV Light set their own */
@@ -731,6 +914,196 @@ body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
     display: flex;
     justify-content: center;
     gap: 16px;
+}
+
+/* --- Go! confirmation: a frosted-glass card over a dimmed, blurred page --- */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    -webkit-app-region: no-drag;
+    animation: modal-fade 0.2s ease-out;
+}
+
+.modal-backdrop[hidden] {
+    display: none;
+}
+
+.modal {
+    width: min(380px, 100%);
+    padding: 24px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.06));
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    box-shadow: 0px 0px 20px 6px rgba(0, 0, 0, 0.5);
+    color: #fff;
+    text-align: center;
+    animation: modal-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.modal h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.modal p {
+    margin: 0 0 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    opacity: 0.85;
+}
+
+/* Go! checklist: left-aligned ticks in a block centred under the text */
+.modal-checklist {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: fit-content;
+    margin: 0 auto 22px;
+    font-size: 15px;
+}
+
+.modal-checklist label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Snow Leopard "sl-check" tickbox (from snow-leopard.css): a grey gel box that turns blue with a tick */
+.modal-checklist input {
+    position: relative;
+    flex: none;
+    margin: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid #777777;
+    background: radial-gradient(20px 20px at 50% 120%, white 0%, rgb(230 230 230) 100%);
+    box-shadow: 0px 1px 2px 0px #0000002e;
+    cursor: pointer;
+}
+
+.modal-checklist input:checked {
+    border: 1px solid #43498e;
+    background: radial-gradient(20px 20px at 50% 120%, white 0%, rgb(53 105 199) 100%);
+}
+
+/* Top shine */
+.modal-checklist input::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
+    width: 100%;
+    height: 48%;
+    border-radius: 25%;
+    background: linear-gradient(rgba(255, 255, 255, 0.9), rgb(255 255 255 / 15%));
+    pointer-events: none;
+}
+
+.modal-checklist input:checked::after {
+    content: "✓";
+    font-size: 17pt;
+    position: absolute;
+    top: -9px;
+    left: 2px;
+}
+
+.modal-checklist input:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Snow Leopard "sl-btn" pill buttons (from snow-leopard.css): Cancel is the plain grey pill, Confirm the blue
+   default-button pill, so it reads as the call to action */
+.modal-button {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate; /* so the ::before shine clips to the pill and stays behind the text */
+    min-width: 96px;
+    padding: 6px 22px;
+    border: 1px solid #6e6d6f;
+    border-radius: 16px;
+    background:
+        linear-gradient(0deg, #fffffff7 0%, transparent 73%),
+        linear-gradient(0deg, #e0e0df 100%);
+    box-shadow: 0 1px 1px 0px rgb(65 80 101 / 50%);
+    color: #1a1a1a;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Top shine */
+.modal-button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 0;
+    width: calc(100% - 6px);
+    height: 42%;
+    border-radius: 20px;
+    background: linear-gradient(rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.5));
+    filter: blur(0.5px);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.modal-button.confirm {
+    border: 1px solid #000080;
+    background:
+        linear-gradient(180deg, #ffffffd1 0%, #ffffff2e 40%),
+        linear-gradient(0deg, #ffffffb3 0%, transparent 73%),
+        linear-gradient(0deg, #176ef2 100%);
+}
+
+.modal-button.confirm::before {
+    background: linear-gradient(rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.2));
+}
+
+.modal-button:active {
+    filter: brightness(0.85);
+}
+
+/* Confirm until every checklist item is ticked */
+.modal-button:disabled {
+    opacity: 0.45;
+    cursor: default;
+    filter: grayscale(0.6);
+}
+
+.modal-button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+@keyframes modal-fade {
+    from { opacity: 0; }
+}
+
+@keyframes modal-pop {
+    from { opacity: 0; transform: scale(0.94) translateY(8px); }
 }
 
 #run-progress {
@@ -788,10 +1161,13 @@ body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
     transform: rotate(180deg);
 }
 
+.reset {
+    --glass-color: #FF9800;
+}
+
 .play {
     --glass-color: #4CAF50;
     color: white;
-    /* font-size: 28px; */
 }
 
 .play.active {
@@ -975,8 +1351,20 @@ body[data-machine="lali-grbl"] #stage-controller .arrow[data-unsupported] {
 /* Side view of the tiles under the needle (LaLi). SVG units are mm. */
 #tile-strip {
     pointer-events: none; /* never in the way of the syringe controls above it */
+    /* Its fixed place in the layout, tucked up under the controls. alignTileStrip then shifts it (transform only)
+       onto the needle tip, so changing the needle's length doesn't move anything else on the page */
+    margin-top: -80px;
     width: 870px; /* 2 px per mm across the viewBox's 430 mm */
     max-width: 90vw;
+}
+
+/* The tiles can be dragged (LaLi GRBL), though the rest of the strip stays out of the way */
+body[data-machine="lali-grbl"] #tile-row {
+    pointer-events: auto;
+}
+
+body[data-machine="lali-grbl"].home-set #tile-row {
+    cursor: ew-resize; /* only draggable after Set Home */
 }
 
 #tile-strip svg {

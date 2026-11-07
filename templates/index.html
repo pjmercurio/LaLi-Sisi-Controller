@@ -13,6 +13,8 @@
 </head>
 <body>
     <div id="drag-region"></div>
+    <!-- Shown while no board is connected (from /connection): a crossed-out plug, top left beside the window buttons -->
+    <div id="no-board-icon" role="img" aria-label="No board connected" title="No board connected" hidden><span>🔌</span></div>
     <!-- Which machine this is; decides the board setup and which controls are shown. Always visible, so you can switch even when not connected -->
     <div id="machine-select" class="segmented" role="radiogroup" aria-label="Machine">
         <button type="button" role="radio" data-machine="microscope">Microscope Controller 🐚🔬</button>
@@ -47,15 +49,23 @@
                 <span>🐢<input type="range" id="plunger-speed-slider" class="snow-leopard-slider" min="10" max="1000" step="10" value="200">🐇</span>
             </div>
             <div>
-                <label for="plunger-distance-value">Plunger Distance: <input type="number" id="plunger-distance-value" class="inline-value" min="0" step="any" value="1.35"> mm</label>
-                <span>🐜<input type="range" id="plunger-distance-slider" class="snow-leopard-slider" min="0.25" max="10" step="0.05" value="1.35">🐋</span>
+                <!-- The unit switch (LaLi GRBL, which has the mL calibration) stands in for the unit; LaLi (Marlin) keeps plain mm -->
+                <div class="plunger-distance-heading">
+                    <label for="plunger-distance-value">Plunger Amount: <input type="number" id="plunger-distance-value" class="inline-value" min="0" step="any" value="0.67"></label>
+                    <span class="plunger-distance-mm" data-machines="lali-marlin">mm</span>
+                    <div id="plunger-unit" class="segmented unit-switch" role="radiogroup" aria-label="Plunger distance unit" data-machines="lali-grbl" style="display: none;">
+                        <button type="button" role="radio" data-unit="mm" class="active" aria-checked="true">mm</button>
+                        <button type="button" role="radio" data-unit="ul" aria-checked="false">µL</button>
+                    </div>
+                </div>
+                <span><span class="small-emoji"><span class="small-emoji-space" aria-hidden="true">💧</span><span class="small-emoji-glyph">💧</span></span><input type="range" id="plunger-distance-slider" class="snow-leopard-slider" min="0.25" max="10" step="0.01" value="0.67">💧</span>
             </div>
         </div>
         </div>
 
         <div id="custom-gcode">
-            <input type="text" id="gcode-input" placeholder="Enter custom g-code here">
-            <button id="send-gcode-button" onclick="sendGCode(document.getElementById('gcode-input').value)">Send</button>
+            <input type="text" id="gcode-input" placeholder="Enter custom G-code here...">
+            <button id="send-gcode-button" disabled onclick="sendGCode(document.getElementById('gcode-input').value)">Send</button>
         </div>
 
         <div class="controllers">
@@ -64,6 +74,8 @@
                 <!-- Y is the syringe axis on LaLi (GRBL), so no stage ▲/▼ there -->
                 <button class="arrow up" data-machines="microscope sisi lali-marlin" data-unsupported="disable" onclick="move('Y', distance)">▲</button>
                 <div class="horizontal-arrows">
+                    <!-- Shown above ◀ ▶ while the conveyor moves (LaLi); they're greyed out until it stops -->
+                    <div id="conveyor-moving" class="moving-status" hidden>Conveyor moving...</div>
                     <button class="arrow left" onclick="move('X', -distance)">◀</button>
                     <button class="arrow right" onclick="move('X', distance)">▶</button>
                 </div>
@@ -88,13 +100,14 @@
             <!-- LaLi (GRBL): both syringe motors are wired in parallel on Y, so one pair of arrows moves both.
                  The syringe is on the left of its arrows, leaving room on the right for tiles leaving the tunnel -->
             <div class="syringe-group" data-machines="lali-grbl" style="display: none;">
-                <!-- Absolute syringe position: top = home (fully up), bottom = full travel. Moves on release. -->
+                <!-- Absolute syringe position, drawn on a 0–3 mL scale: Set Home (Y0) is 2.77 mL, full travel (Y44) 0.1 mL. Moves on release. -->
                 <div class="syringe-slider-block">
                     <!-- Drawn syringe: drag anywhere on it to move the plunger. The hidden range input holds the value. -->
                     <div class="syringe-visual" id="syringe-visual">
                         <div class="syringe-plunger">
-                            <!-- Plunged distance from home; rides just above the thumb press -->
-                            <span id="syringe-position" class="syringe-position">0 mm</span>
+                            <!-- Rides just above the thumb press. With the Plunger Amount in mm: Y, mm plunged below Set Home;
+                                 in µL: the mL each syringe holds. Editable: type a value and press Enter to move there -->
+                            <span class="syringe-position"><input type="number" id="syringe-position" class="inline-value" step="any" value="0" aria-label="Syringe position"><span id="syringe-position-unit">&nbsp;mm</span></span>
                             <div class="syringe-thumb"></div>
                             <div class="syringe-rod"></div>
                             <div class="syringe-stopper"></div>
@@ -105,13 +118,18 @@
                         <div class="syringe-hub"></div>
                         <div class="syringe-needle"></div>
                         <div class="syringe-drop"></div>
-                        <input type="range" id="syringe-slider" min="0" max="40" step="0.25" value="0" tabindex="-1" aria-label="Syringe position (mm below home)">
+                        <input type="range" id="syringe-slider" min="0" max="44" step="any" value="0" tabindex="-1" aria-label="Syringe position (mm below Set Home)">
                     </div>
                 </div>
                 <div class="controller syringe-controller">
+                    <!-- Shown above ▲ while the syringes move to where they were dragged; ▲/▼ are greyed out until then -->
+                    <div id="syringes-moving" class="moving-status" hidden>Syringes moving...</div>
                     <!-- Through syringeMoveGCode, so the arrows use the same direction setting as Dispense and Go! -->
                     <button class="arrow up" onclick="moveSyringes(-plungerDistance)">▲</button>
                     <button class="arrow down" onclick="moveSyringes(plungerDistance)">▼</button>
+                    <!-- Start volume: after Set Home, picking one plunges the syringes down to it; Reset Syringes comes back to it.
+                         Buttons are added by script.js from SYRINGE_PRESETS_ML. Hangs below ▼ without moving the arrows -->
+                    <div id="syringe-preset" class="segmented" role="radiogroup" aria-label="Syringe start volume"></div>
                 </div>
             </div>
         </div>
@@ -158,10 +176,10 @@
                 <button id="home-button" class="bottom-button home">🏡</button>
                 <span class="button-label">Home</span>
             </div> -->
-            <!-- Set Home (LaLi GRBL): the syringes are at 1.5 mL and tile 1 is under the needle, right now -->
+            <!-- Set Home (LaLi GRBL): the syringes are at 2.77 mL with their holder plate against the stepper, and tile 1 is under the needle, right now -->
             <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
-                <button id="set-home-button" class="bottom-button home" onclick="setSyringeHome()" title="Mark the current syringe position as 1.5 mL and the current conveyor position as tile 1">🏡</button>
-                <span class="button-label">Set Home</span>
+                <button id="set-home-button" class="bottom-button home" onclick="setSyringeHome()" title="Mark the syringes as at 2.77 mL (holder plate against the stepper) and the current conveyor position as tile 1. Doesn't move anything">🏡</button>
+                <span id="set-home-label" class="button-label">Set Home</span> <!-- "Re-Set Home" once it has been set -->
             </div>
             <!-- UV light: FAN0 on LaLi (Marlin), spindle PWM (M3/M5) on LaLi (GRBL) -->
             <div class="labeled-button" data-machines="lali-marlin lali-grbl" style="display: none;">
@@ -177,16 +195,22 @@
             </div> -->
             <!-- Prime is GRBL G-code (syringes on Y), so LaLi (GRBL) only -->
             <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
-                <button id="prime-button" class="bottom-button prime" title="Prime the syringes: 3mm press">💧</button>
+                <button id="prime-button" class="bottom-button prime" title="Prime the syringes: 1mm (0.06mL) press">💧</button>
                 <span id="prime-label" class="button-label">Prime</span>
             </div>
-            <!-- Syringes and conveyor back to their Set Home positions; LaLi (GRBL) only -->
+            <!-- Reset Syringes / Reset Conveyor (LaLi GRBL): each back to where you set it. Pressed within 0.6 s of each other, both move together -->
             <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
-                <button id="reset-button" class="bottom-button reset" title="Pull the syringes up and run the conveyor back to their Set Home positions">↩️</button>
-                <span id="reset-label" class="button-label">Reset</span>
+                <button id="reset-syringes-button" class="bottom-button reset" title="Move the syringes back to the Start Volume (or Set Home if none is picked). Press Reset Conveyor straight after to move both together"><span class="syringe-icon">💉</span></button>
+                <span id="reset-syringes-label" class="button-label two-line">Reset
+Syringes</span>
+            </div>
+            <div class="labeled-button" data-machines="lali-grbl" style="display: none;">
+                <button id="reset-conveyor-button" class="bottom-button reset" title="Run the conveyor back to tile 1 (Set Home) and clear the tile marks. Press Reset Syringes straight after to move both together">⏪️</button>
+                <span id="reset-conveyor-label" class="button-label two-line">Reset
+Conveyor</span>
             </div>
             <div class="labeled-button" data-machines="lali-marlin lali-grbl" style="display: none;">
-                <button id="play-button" class="bottom-button play" title="Prime the syringes and place the first row first. UV on; run 12×: settle, syringe press, advance; advance 11× more through the UV tunnel; UV off; pull syringes back up">▶</button>
+                <button id="play-button" class="bottom-button play" title="Prime the syringes and place the first row first. UV on; run 12×: settle, syringe press, advance; advance 11× more through the UV tunnel; UV off">▶</button>
                 <span class="button-label">Go!</span>
             </div>
             <div class="labeled-button" onclick="emergencyStop()">
@@ -194,13 +218,31 @@
                 <span class="button-label">Stop!</span>
             </div>
         </div>
+        <!-- Go! confirmation: tick every item to enable Confirm (or Return), which starts the run. Cancel (or Esc, or a click outside) doesn't -->
+        <div id="go-confirm" class="modal-backdrop" hidden>
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="go-confirm-title" aria-describedby="go-confirm-text">
+                <h2 id="go-confirm-title">Start Crosslinking</h2>
+                <p id="go-confirm-text">Ensure you've completed the following:</p>
+                <div class="modal-checklist">
+                    <label><input type="checkbox" class="go-check"> Syringes loaded</label>
+                    <label><input type="checkbox" class="go-check"> Syringes primed</label>
+                    <label><input type="checkbox" class="go-check"> Tray at tile position 1</label>
+                    <label><input type="checkbox" class="go-check"> UV Light On</label>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" id="go-cancel" class="modal-button cancel">Cancel</button>
+                    <button type="button" id="go-confirm-button" class="modal-button confirm" disabled>Confirm</button>
+                </div>
+            </div>
+        </div>
         <!-- Progress for the play sequence; shown only while it runs -->
         <div id="run-progress" style="display: none;">
             <div id="run-progress-track"><div id="run-progress-fill"></div></div>
             <span id="run-progress-label"></span>
         </div>
-        <!-- How long the board's USB connection has lasted (from /connection, checked every second) -->
-        <div id="usb-status"></div>
+        <!-- How long the board's USB connection has lasted (from /connection, checked every second). Hidden for now:
+             script.js still polls and logs a lost connection to the console. Un-comment to show it again -->
+        <!-- <div id="usb-status"></div> -->
         <!-- <div id="preset-buttons">
             <button id="sweep-10s" class="bottom-button sweep">10s 🧹</button>
             <button id="sweep-15s" class="bottom-button sweep">15s 🧹</button>
